@@ -1,0 +1,23 @@
+{
+  "name": "umbra",
+  "version": "0.1.0",
+  "description": "Hyperbolic workspace - visualization of H^n manifold",
+  "private": true,
+  "scripts": {
+    "dev": "npx shadow-cljs watch app",
+    "build": "npx shadow-cljs release app",
+    "test": "npx shadow-cljs compile test && node out/test.js",
+    "repl": "npx shadow-cljs cljs-repl app",
+    "server": "npx shadow-cljs server",
+    "clean": "rm -rf public/js/cljs out .shadow-cljs"
+  },
+  "devDependencies": {
+    "shadow-cljs": "^2.26.2"
+  },
+  "keywords": [
+    "hyperbolic",
+    "geometry",
+    "visualization",
+    "clojurescript"
+  ]
+}

@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proof Tree Composer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'SF Mono', 'Consolas', monospace;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 240px 1fr 280px;
+      grid-template-rows: auto 1fr auto;
+      height: 100vh;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      background: #15151f;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      border-bottom: 1px solid #333;
+    }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 500;
+      color: #fa8;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-left: auto;
+    }
+
+    button {
+      background: #252535;
+      border: 1px solid #444;
+      color: #aaa;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+
+    button:hover {
+      background: #353545;
+      color: #fff;
+      border-color: #666;
+    }
+
+    button.active {
+      background: #504030;
+      border-color: #fa8;
+      color: #fa8;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Tactic Palette */
+    .palette {
+      background: #12121c;
+      border-right: 1px solid #333;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    .section-title {
+      font-size: 11px;
+      color: #666;
+      text-transform: uppercase;
+      margin: 15px 0 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .section-title:first-child {
+      margin-top: 0;
+    }
+
+    .tactic-btn {
+      display: block;
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 6px;
+      background: #1a1a28;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #aaa;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s;
+    }
+
+    .tactic-btn:hover {
+      background: #252535;
+      color: #fff;
+      border-color: #555;
+    }
+
+    .tactic-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .tactic-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #fa8;
+      margin-bottom: 2px;
+    }
+
+    .tactic-desc {
+      font-size: 10px;
+      color: #666;
+    }
+
+    /* Main proof area */
+    .proof-area {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .goal-panel {
+      background: #18182a;
+      padding: 15px 20px;
+      border-bottom: 1px solid #333;
+    }
+
+    .goal-header {
+      font-size: 11px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .hypotheses {
+      margin-bottom: 12px;
+    }
+
+    .hypothesis {
+      display: flex;
+      gap: 10px;
+      padding: 6px 10px;
+      background: #1a1a28;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+
+    .hyp-name {
+      color: #8af;
+      min-width: 40px;
+    }
+
+    .hyp-type {
+      color: #aaa;
+    }
+
+    .goal-divider {
+      height: 2px;
+      background: linear-gradient(to right, #fa8, transparent);
+      margin: 10px 0;
+    }
+
+    .current-goal {
+      font-size: 16px;
+      color: #fff;
+      padding: 10px;
+      background: #1a1a28;
+      border-radius: 4px;
+      border-left: 3px solid #fa8;
+    }
+
+    .goal-complete {
+      color: #4e8;
+      font-size: 14px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    /* Tree visualization */
+    .tree-panel {
+      flex: 1;
+      overflow: auto;
+      padding: 20px;
+      background: #0f0f18;
+    }
+
+    .proof-tree {
+      min-width: fit-content;
+    }
+
+    .tree-node {
+      margin: 10px 0;
+      padding-left: 25px;
+      border-left: 2px solid #333;
+      position: relative;
+    }
+
+    .tree-node::before {
+      content: '';
+      position: absolute;
+      left: -2px;
+      top: 0;
+      width: 10px;
+      height: 15px;
+      border-bottom: 2px solid #333;
+      border-left: 2px solid #333;
+      border-bottom-left-radius: 8px;
+    }
+
+    .tree-node:last-child::after {
+      content: '';
+      position: absolute;
+      left: -2px;
+      top: 15px;
+      bottom: 0;
+      width: 2px;
+      background: #0f0f18;
+    }
+
+    .node-content {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .node-tactic {
+      background: #252535;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #fa8;
+      white-space: nowrap;
+    }
+
+    .node-goal {
+      background: #1a1a28;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #ccc;
+      flex: 1;
+    }
+
+    .node-status {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    .node-status.complete {
+      background: #253525;
+      color: #4e8;
+    }
+
+    .node-status.active {
+      background: #353525;
+      color: #fa8;
+      animation: pulse 1.5s infinite;
+    }
+
+    .node-status.pending {
+      background: #252535;
+      color: #666;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Right sidebar */
+    .sidebar {
+      background: #12121c;
+      border-left: 1px solid #333;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    .theorem-list {
+      margin-bottom: 15px;
+    }
+
+    .theorem-item {
+      padding: 10px;
+      background: #1a1a28;
+      border-radius: 4px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      border: 1px solid #333;
+      transition: all 0.15s;
+    }
+
+    .theorem-item:hover {
+      background: #252535;
+      border-color: #555;
+    }
+
+    .theorem-item.active {
+      border-color: #fa8;
+      background: #2a2520;
+    }
+
+    .theorem-name {
+      font-size: 12px;
+      color: #fa8;
+      margin-bottom: 4px;
+    }
+
+    .theorem-stmt {
+      font-size: 11px;
+      color: #888;
+    }
+
+    /* Export panel */
+    .export-panel {
+      margin-top: 15px;
+      padding: 10px;
+      background: #1a1a28;
+      border-radius: 4px;
+    }
+
+    .export-title {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .export-code {
+      background: #0f0f18;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #aaa;
+      white-space: pre-wrap;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .export-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .export-buttons button {
+      flex: 1;
+      font-size: 10px;
+    }
+
+    /* Footer */
+    footer {
+      grid-column: 1 / -1;
+      background: #15151f;
+      padding: 10px 20px;
+      display: flex;
+      gap: 20px;
+      border-top: 1px solid #333;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .status-item {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .status-dot.success { background: #4e8; }
+    .status-dot.active { background: #fa8; }
+    .status-dot.error { background: #f66; }
+
+    /* Type annotations */
+    .type { color: #8af; }
+    .term { color: #4e8; }
+    .keyword { color: #fa8; }
+    .symbol { color: #888; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Proof Tree Composer</h1>
+      <span style="color: #666; font-size: 12px;">Tactic-style proof assistant</span>
+      <div class="controls">
+        <button id="btn-undo" disabled>Undo</button>
+        <button id="btn-reset">Reset</button>
+      </div>
+    </header>
+
+    <div class="palette">
+      <div class="section-title">Introduction</div>
+      <button class="tactic-btn" data-tactic="intro">
+        <div class="tactic-name">intro</div>
+        <div class="tactic-desc">Introduce hypothesis from forall/implication</div>
+      </button>
+      <button class="tactic-btn" data-tactic="intros">
+        <div class="tactic-name">intros</div>
+        <div class="tactic-desc">Introduce all hypotheses</div>
+      </button>
+
+      <div class="section-title">Application</div>
+      <button class="tactic-btn" data-tactic="apply">
+        <div class="tactic-name">apply</div>
+        <div class="tactic-desc">Apply a hypothesis or lemma</div>
+      </button>
+      <button class="tactic-btn" data-tactic="exact">
+        <div class="tactic-name">exact</div>
+        <div class="tactic-desc">Provide exact proof term</div>
+      </button>
+
+      <div class="section-title">Rewriting</div>
+      <button class="tactic-btn" data-tactic="rewrite">
+        <div class="tactic-name">rewrite</div>
+        <div class="tactic-desc">Rewrite using equality hypothesis</div>
+      </button>
+      <button class="tactic-btn" data-tactic="simp">
+        <div class="tactic-name">simp</div>
+        <div class="tactic-desc">Simplify using known lemmas</div>
+      </button>
+
+      <div class="section-title">Induction</div>
+      <button class="tactic-btn" data-tactic="induction">
+        <div class="tactic-name">induction</div>
+        <div class="tactic-desc">Prove by induction on natural number</div>
+      </button>
+      <button class="tactic-btn" data-tactic="cases">
+        <div class="tactic-name">cases</div>
+        <div class="tactic-desc">Case analysis on hypothesis</div>
+      </button>
+
+      <div class="section-title">Finishing</div>
+      <button class="tactic-btn" data-tactic="rfl">
+        <div class="tactic-name">rfl</div>
+        <div class="tactic-desc">Prove by reflexivity</div>
+      </button>
+      <button class="tactic-btn" data-tactic="trivial">
+        <div class="tactic-name">trivial</div>
+        <div class="tactic-desc">Solve trivial goals</div>
+      </button>
+      <button class="tactic-btn" data-tactic="assumption">
+        <div class="tactic-name">assumption</div>
+        <div class="tactic-desc">Use exact hypothesis</div>
+      </button>
+    </div>
+
+    <div class="proof-area">
+      <div class="goal-panel">
+        <div class="goal-header">Current Goal</div>
+        <div class="hypotheses" id="hypotheses"></div>
+        <div class="goal-divider"></div>
+        <div class="current-goal" id="current-goal"></div>
+      </div>
+      <div class="tree-panel">
+        <div class="proof-tree" id="proof-tree"></div>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="section-title">Example Theorems</div>
+      <div class="theorem-list" id="theorem-list"></div>
+
+      <div class="section-title">Export</div>
+      <div class="export-panel">
+        <div class="export-title">Lean 4 syntax</div>
+        <div class="export-code" id="export-code"></div>
+        <div class="export-buttons">
+          <button id="btn-copy">Copy</button>
+          <button id="btn-export-coq">Coq</button>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <div class="status-item">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Ready</span>
+      </div>
+      <div style="margin-left: auto; color: #555;">
+        Curry-Howard: proofs = programs
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // ========================================
+    // Type System (Simple Type Theory)
+    // ========================================
+
+    // Types
+    function TVar(name) { return { tag: 'var', name }; }
+    function TArrow(from, to) { return { tag: 'arrow', from, to }; }
+    function TForall(v, body) { return { tag: 'forall', var: v, body }; }
+    function TNat() { return { tag: 'nat' }; }
+    function TEq(a, b) { return { tag: 'eq', left: a, right: b }; }
+    function TProp() { return { tag: 'prop' }; }
+
+    function typeToString(t) {
+      if (!t) return '?';
+      switch (t.tag) {
+        case 'var': return t.name;
+        case 'nat': return '<span class="type">ℕ</span>';
+        case 'prop': return '<span class="type">Prop</span>';
+        case 'arrow':
+          const from = typeToString(t.from);
+          const to = typeToString(t.to);
+          return `(${from} <span class="symbol">→</span> ${to})`;
+        case 'forall':
+          return `<span class="keyword">∀</span> ${t.var} <span class="symbol">:</span> ${typeToString(t.body.varType)}, ${typeToString(t.body.result)}`;
+        case 'eq':
+          return `${termToString(t.left)} <span class="symbol">=</span> ${termToString(t.right)}`;
+        default:
+          return JSON.stringify(t);
+      }
+    }
+
+    // Terms
+    function Var(name) { return { tag: 'var', name }; }
+    function App(fn, arg) { return { tag: 'app', fn, arg }; }
+    function Lam(v, vtype, body) { return { tag: 'lam', var: v, varType: vtype, body }; }
+    function Zero() { return { tag: 'zero' }; }
+    function Succ(n) { return { tag: 'succ', arg: n }; }
+    function Plus(a, b) { return { tag: 'plus', left: a, right: b }; }
+    function Refl(t) { return { tag: 'refl', term: t }; }
+
+    function termToString(t) {
+      if (!t) return '?';
+      switch (t.tag) {
+        case 'var': return `<span class="term">${t.name}</span>`;
+        case 'zero': return '<span class="term">0</span>';
+        case 'succ': return `<span class="term">S</span>(${termToString(t.arg)})`;
+        case 'plus': return `${termToString(t.left)} <span class="symbol">+</span> ${termToString(t.right)}`;
+        case 'app': return `(${termToString(t.fn)} ${termToString(t.arg)})`;
+        case 'lam': return `<span class="keyword">λ</span> ${t.var}, ${termToString(t.body)}`;
+        case 'refl': return `<span class="keyword">rfl</span>`;
+        default:
+          return t.name || JSON.stringify(t);
+      }
+    }
+
+    // ========================================
+    // Proof State
+    // ========================================
+
+    class ProofState {
+      constructor(theorem) {
+        this.theorem = theorem;
+        this.goals = [{ hypotheses: [], target: theorem.type, id: 0 }];
+        this.tree = { tactic: 'theorem', goal: theorem.type, children: [], status: 'active' };
+        this.currentNode = this.tree;
+        this.history = [];
+        this.nextId = 1;
+      }
+
+      currentGoal() {
+        return this.goals[0] || null;
+      }
+
+      isComplete() {
+        return this.goals.length === 0;
+      }
+
+      applyTactic(name, args = {}) {
+        const goal = this.currentGoal();
+        if (!goal) return { success: false, error: 'No goals remaining' };
+
+        // Save state for undo
+        this.history.push({
+          goals: JSON.parse(JSON.stringify(this.goals)),
+          tree: JSON.parse(JSON.stringify(this.tree))
+        });
+
+        const result = this.executeTactic(name, goal, args);
+
+        if (result.success) {
+          // Remove current goal
+          this.goals.shift();
+
+          // Add new goals
+          if (result.newGoals) {
+            this.goals.unshift(...result.newGoals);
+          }
+
+          // Update tree
+          this.currentNode.status = 'complete';
+          this.currentNode.children = result.newGoals?.map((g, i) => ({
+            tactic: name,
+            goal: g.target,
+            children: [],
+            status: i === 0 ? 'active' : 'pending',
+            id: g.id
+          })) || [];
+
+          if (this.currentNode.children.length > 0) {
+            this.currentNode = this.currentNode.children[0];
+          }
+        } else {
+          // Revert history
+          this.history.pop();
+        }
+
+        return result;
+      }
+
+      executeTactic(name, goal, args) {
+        const { hypotheses, target } = goal;
+
+        switch (name) {
+          case 'intro': {
+            if (target.tag === 'forall') {
+              const newHyp = { name: target.var, type: target.body.varType };
+              return {
+                success: true,
+                newGoals: [{
+                  hypotheses: [...hypotheses, newHyp],
+                  target: target.body.result,
+                  id: this.nextId++
+                }]
+              };
+            }
+            if (target.tag === 'arrow') {
+              const varName = `h${hypotheses.length}`;
+              const newHyp = { name: varName, type: target.from };
+              return {
+                success: true,
+                newGoals: [{
+                  hypotheses: [...hypotheses, newHyp],
+                  target: target.to,
+                  id: this.nextId++
+                }]
+              };
+            }
+            return { success: false, error: 'Cannot intro: goal is not forall or arrow' };
+          }
+
+          case 'intros': {
+            let current = target;
+            const newHyps = [...hypotheses];
+
+            while (current.tag === 'forall' || current.tag === 'arrow') {
+              if (current.tag === 'forall') {
+                newHyps.push({ name: current.var, type: current.body.varType });
+                current = current.body.result;
+              } else {
+                const varName = `h${newHyps.length}`;
+                newHyps.push({ name: varName, type: current.from });
+                current = current.to;
+              }
+            }
+
+            if (newHyps.length === hypotheses.length) {
+              return { success: false, error: 'Nothing to introduce' };
+            }
+
+            return {
+              success: true,
+              newGoals: [{
+                hypotheses: newHyps,
+                target: current,
+                id: this.nextId++
+              }]
+            };
+          }
+
+          case 'rfl': {
+            if (target.tag === 'eq' && this.termsEqual(target.left, target.right)) {
+              return { success: true, newGoals: [] };
+            }
+            return { success: false, error: 'Goal is not a reflexive equality' };
+          }
+
+          case 'assumption': {
+            for (const h of hypotheses) {
+              if (this.typesEqual(h.type, target)) {
+                return { success: true, newGoals: [] };
+              }
+            }
+            return { success: false, error: 'No matching hypothesis found' };
+          }
+
+          case 'trivial': {
+            // Try rfl
+            if (target.tag === 'eq' && this.termsEqual(target.left, target.right)) {
+              return { success: true, newGoals: [] };
+            }
+            // Try assumption
+            for (const h of hypotheses) {
+              if (this.typesEqual(h.type, target)) {
+                return { success: true, newGoals: [] };
+              }
+            }
+            return { success: false, error: 'Cannot solve trivially' };
+          }
+
+          case 'simp': {
+            // Simplified simplification for n + 0 = n
+            if (target.tag === 'eq') {
+              const simplified = this.simplifyTerm(target.left);
+              if (this.termsEqual(simplified, target.right)) {
+                return { success: true, newGoals: [] };
+              }
+            }
+            return { success: false, error: 'Simplification did not solve goal' };
+          }
+
+          case 'induction': {
+            // Find natural number variable to induct on
+            const natVar = hypotheses.find(h => h.type.tag === 'nat');
+            if (!natVar) {
+              return { success: false, error: 'No natural number hypothesis found' };
+            }
+
+            // Base case: substitute 0
+            const baseTarget = this.substituteInType(target, natVar.name, Zero());
+
+            // Inductive case: assume P(n), prove P(S(n))
+            const ihType = target;  // Inductive hypothesis
+            const stepTarget = this.substituteInType(target, natVar.name, Succ(Var(natVar.name)));
+
+            return {
+              success: true,
+              newGoals: [
+                {
+                  hypotheses: hypotheses.filter(h => h.name !== natVar.name),
+                  target: baseTarget,
+                  id: this.nextId++
+                },
+                {
+                  hypotheses: [
+                    ...hypotheses,
+                    { name: 'ih', type: ihType }
+                  ],
+                  target: stepTarget,
+                  id: this.nextId++
+                }
+              ]
+            };
+          }
+
+          case 'rewrite': {
+            // Find equality hypothesis
+            const eqHyp = hypotheses.find(h => h.type.tag === 'eq');
+            if (!eqHyp) {
+              return { success: false, error: 'No equality hypothesis to rewrite with' };
+            }
+
+            const newTarget = this.rewriteInType(target, eqHyp.type.left, eqHyp.type.right);
+            return {
+              success: true,
+              newGoals: [{
+                hypotheses,
+                target: newTarget,
+                id: this.nextId++
+              }]
+            };
+          }
+
+          default:
+            return { success: false, error: `Unknown tactic: ${name}` };
+        }
+      }
+
+      termsEqual(a, b) {
+        if (!a || !b) return false;
+        if (a.tag !== b.tag) return false;
+        switch (a.tag) {
+          case 'var': return a.name === b.name;
+          case 'zero': return true;
+          case 'succ': return this.termsEqual(a.arg, b.arg);
+          case 'plus': return this.termsEqual(a.left, b.left) && this.termsEqual(a.right, b.right);
+          case 'app': return this.termsEqual(a.fn, b.fn) && this.termsEqual(a.arg, b.arg);
+          default: return false;
+        }
+      }
+
+      typesEqual(a, b) {
+        if (!a || !b) return false;
+        if (a.tag !== b.tag) return false;
+        switch (a.tag) {
+          case 'var': return a.name === b.name;
+          case 'nat': case 'prop': return true;
+          case 'arrow': return this.typesEqual(a.from, b.from) && this.typesEqual(a.to, b.to);
+          case 'eq': return this.termsEqual(a.left, b.left) && this.termsEqual(a.right, b.right);
+          default: return false;
+        }
+      }
+
+      simplifyTerm(t) {
+        if (!t) return t;
+        switch (t.tag) {
+          case 'plus':
+            if (t.right.tag === 'zero') return this.simplifyTerm(t.left);
+            if (t.left.tag === 'zero') return this.simplifyTerm(t.right);
+            return Plus(this.simplifyTerm(t.left), this.simplifyTerm(t.right));
+          case 'succ':
+            return Succ(this.simplifyTerm(t.arg));
+          default:
+            return t;
+        }
+      }
+
+      substituteInType(type, varName, replacement) {
+        if (!type) return type;
+        switch (type.tag) {
+          case 'eq':
+            return TEq(
+              this.substituteInTerm(type.left, varName, replacement),
+              this.substituteInTerm(type.right, varName, replacement)
+            );
+          default:
+            return type;
+        }
+      }
+
+      substituteInTerm(term, varName, replacement) {
+        if (!term) return term;
+        switch (term.tag) {
+          case 'var':
+            return term.name === varName ? replacement : term;
+          case 'succ':
+            return Succ(this.substituteInTerm(term.arg, varName, replacement));
+          case 'plus':
+            return Plus(
+              this.substituteInTerm(term.left, varName, replacement),
+              this.substituteInTerm(term.right, varName, replacement)
+            );
+          default:
+            return term;
+        }
+      }
+
+      rewriteInType(type, from, to) {
+        if (!type) return type;
+        switch (type.tag) {
+          case 'eq':
+            return TEq(
+              this.rewriteInTerm(type.left, from, to),
+              this.rewriteInTerm(type.right, from, to)
+            );
+          default:
+            return type;
+        }
+      }
+
+      rewriteInTerm(term, from, to) {
+        if (this.termsEqual(term, from)) return to;
+        if (!term) return term;
+        switch (term.tag) {
+          case 'succ':
+            return Succ(this.rewriteInTerm(term.arg, from, to));
+          case 'plus':
+            return Plus(
+              this.rewriteInTerm(term.left, from, to),
+              this.rewriteInTerm(term.right, from, to)
+            );
+          default:
+            return term;
+        }
+      }
+
+      undo() {
+        if (this.history.length === 0) return false;
+        const prev = this.history.pop();
+        this.goals = prev.goals;
+        this.tree = prev.tree;
+        this.findActiveNode(this.tree);
+        return true;
+      }
+
+      findActiveNode(node) {
+        if (node.status === 'active') {
+          this.currentNode = node;
+          return true;
+        }
+        for (const child of node.children || []) {
+          if (this.findActiveNode(child)) return true;
+        }
+        return false;
+      }
+
+      toLean4() {
+        const lines = [];
+        lines.push(`theorem ${this.theorem.name} : ${this.typeToLean(this.theorem.type)} := by`);
+        this.treeToLean(this.tree, lines, '  ');
+        return lines.join('\n');
+      }
+
+      typeToLean(t) {
+        if (!t) return '?';
+        switch (t.tag) {
+          case 'nat': return 'Nat';
+          case 'prop': return 'Prop';
+          case 'forall':
+            return `∀ ${t.var} : ${this.typeToLean(t.body.varType)}, ${this.typeToLean(t.body.result)}`;
+          case 'arrow':
+            return `${this.typeToLean(t.from)} → ${this.typeToLean(t.to)}`;
+          case 'eq':
+            return `${this.termToLean(t.left)} = ${this.termToLean(t.right)}`;
+          default:
+            return '?';
+        }
+      }
+
+      termToLean(t) {
+        if (!t) return '?';
+        switch (t.tag) {
+          case 'var': return t.name;
+          case 'zero': return '0';
+          case 'succ': return `Nat.succ ${this.termToLean(t.arg)}`;
+          case 'plus': return `${this.termToLean(t.left)} + ${this.termToLean(t.right)}`;
+          default: return '?';
+        }
+      }
+
+      treeToLean(node, lines, indent) {
+        if (node.tactic !== 'theorem') {
+          lines.push(`${indent}${node.tactic}`);
+        }
+        for (const child of node.children || []) {
+          this.treeToLean(child, lines, indent + '  ');
+        }
+      }
+    }
+
+    // ========================================
+    // Example Theorems
+    // ========================================
+
+    const theorems = [
+      {
+        name: 'add_zero_right',
+        description: 'n + 0 = n',
+        type: TForall('n', { varType: TNat(), result: TEq(Plus(Var('n'), Zero()), Var('n')) })
+      },
+      {
+        name: 'zero_add',
+        description: '0 + n = n',
+        type: TForall('n', { varType: TNat(), result: TEq(Plus(Zero(), Var('n')), Var('n')) })
+      },
+      {
+        name: 'succ_add',
+        description: 'S(n) + m = S(n + m)',
+        type: TForall('n', {
+          varType: TNat(),
+          result: TForall('m', {
+            varType: TNat(),
+            result: TEq(Plus(Succ(Var('n')), Var('m')), Succ(Plus(Var('n'), Var('m'))))
+          })
+        })
+      },
+      {
+        name: 'identity',
+        description: 'A → A',
+        type: TForall('A', { varType: TProp(), result: TArrow(TVar('A'), TVar('A')) })
+      },
+      {
+        name: 'modus_ponens',
+        description: '(A → B) → A → B',
+        type: TForall('A', {
+          varType: TProp(),
+          result: TForall('B', {
+            varType: TProp(),
+            result: TArrow(TArrow(TVar('A'), TVar('B')), TArrow(TVar('A'), TVar('B')))
+          })
+        })
+      }
+    ];
+
+    // ========================================
+    // State
+    // ========================================
+
+    let proofState = null;
+    let currentTheorem = 0;
+
+    // ========================================
+    // Rendering
+    // ========================================
+
+    function renderGoal() {
+      const goal = proofState.currentGoal();
+      const hypDiv = document.getElementById('hypotheses');
+      const goalDiv = document.getElementById('current-goal');
+
+      if (!goal) {
+        hypDiv.innerHTML = '';
+        goalDiv.innerHTML = '<div class="goal-complete">QED - Proof complete!</div>';
+        return;
+      }
+
+      hypDiv.innerHTML = goal.hypotheses.map(h => `
+        <div class="hypothesis">
+          <span class="hyp-name">${h.name}</span>
+          <span class="symbol">:</span>
+          <span class="hyp-type">${typeToString(h.type)}</span>
+        </div>
+      `).join('');
+
+      goalDiv.innerHTML = typeToString(goal.target);
+    }
+
+    function renderTree() {
+      const container = document.getElementById('proof-tree');
+      container.innerHTML = renderTreeNode(proofState.tree);
+    }
+
+    function renderTreeNode(node) {
+      const statusIcon = {
+        'complete': '✓',
+        'active': '●',
+        'pending': '○'
+      }[node.status] || '?';
+
+      const goalStr = typeToString(node.goal);
+
+      let html = `
+        <div class="node-content">
+          <div class="node-status ${node.status}">${statusIcon}</div>
+          <div class="node-tactic">${node.tactic}</div>
+          <div class="node-goal">${goalStr}</div>
+        </div>
+      `;
+
+      if (node.children && node.children.length > 0) {
+        html += '<div class="tree-node">';
+        html += node.children.map(child => renderTreeNode(child)).join('');
+        html += '</div>';
+      }
+
+      return html;
+    }
+
+    function renderTheoremList() {
+      const list = document.getElementById('theorem-list');
+      list.innerHTML = theorems.map((t, i) => `
+        <div class="theorem-item ${i === currentTheorem ? 'active' : ''}" data-index="${i}">
+          <div class="theorem-name">${t.name}</div>
+          <div class="theorem-stmt">${t.description}</div>
+        </div>
+      `).join('');
+
+      list.querySelectorAll('.theorem-item').forEach(item => {
+        item.addEventListener('click', () => {
+          currentTheorem = parseInt(item.dataset.index);
+          loadTheorem(currentTheorem);
+        });
+      });
+    }
+
+    function renderExport() {
+      document.getElementById('export-code').textContent = proofState.toLean4();
+    }
+
+    function updateStatus() {
+      const dot = document.getElementById('status-dot');
+      const text = document.getElementById('status-text');
+      const undoBtn = document.getElementById('btn-undo');
+
+      if (proofState.isComplete()) {
+        dot.className = 'status-dot success';
+        text.textContent = 'Proof complete';
+      } else {
+        dot.className = 'status-dot active';
+        text.textContent = `${proofState.goals.length} goal(s) remaining`;
+      }
+
+      undoBtn.disabled = proofState.history.length === 0;
+    }
+
+    function render() {
+      renderGoal();
+      renderTree();
+      renderExport();
+      updateStatus();
+      updateTacticButtons();
+    }
+
+    function updateTacticButtons() {
+      const goal = proofState.currentGoal();
+      const buttons = document.querySelectorAll('.tactic-btn');
+
+      buttons.forEach(btn => {
+        btn.disabled = !goal;
+      });
+    }
+
+    // ========================================
+    // Event Handlers
+    // ========================================
+
+    function loadTheorem(index) {
+      const theorem = theorems[index];
+      proofState = new ProofState(theorem);
+      renderTheoremList();
+      render();
+    }
+
+    document.querySelectorAll('.tactic-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tactic = btn.dataset.tactic;
+        const result = proofState.applyTactic(tactic);
+
+        if (!result.success) {
+          // Show error briefly
+          btn.style.borderColor = '#f66';
+          btn.style.background = '#352525';
+          setTimeout(() => {
+            btn.style.borderColor = '';
+            btn.style.background = '';
+          }, 500);
+        }
+
+        render();
+      });
+    });
+
+    document.getElementById('btn-undo').addEventListener('click', () => {
+      proofState.undo();
+      render();
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      loadTheorem(currentTheorem);
+    });
+
+    document.getElementById('btn-copy').addEventListener('click', () => {
+      navigator.clipboard.writeText(proofState.toLean4());
+    });
+
+    document.getElementById('btn-export-coq').addEventListener('click', () => {
+      // Simplified Coq export
+      const coq = proofState.toLean4()
+        .replace('theorem', 'Theorem')
+        .replace(':= by', '.')
+        .replace('Nat', 'nat')
+        .replace(/∀/g, 'forall')
+        .replace(/→/g, '->');
+      document.getElementById('export-code').textContent = coq;
+    });
+
+    // ========================================
+    // Initialize
+    // ========================================
+
+    loadTheorem(0);
+    renderTheoremList();
+  </script>
+</body>
+</html>

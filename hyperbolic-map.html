@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hyperbolic Map UI (Poincaré disk prototype)</title>
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --panel: #13151c;
+      --ink: #e8e8ea;
+      --muted: #a7a7b0;
+      --line: rgba(232,232,234,.18);
+      --accent: #9ad4ff;
+      --accent2: #ffd09a;
+    }
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .app { display: grid; grid-template-columns: 1fr 360px; grid-template-rows: auto 1fr auto; height: 100%; }
+    header {
+      grid-column: 1 / -1;
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(to bottom, rgba(255,255,255,.03), rgba(255,255,255,0));
+    }
+    header .title { font-size: 14px; letter-spacing: .02em; opacity: .95; }
+    header .hint { font-size: 12px; color: var(--muted); }
+    .main { position: relative; }
+    canvas { width: 100%; height: 100%; display: block; }
+    .hud {
+      position: absolute; left: 12px; top: 12px;
+      display: flex; flex-direction: column; gap: 8px;
+      pointer-events: none;
+    }
+    .pill {
+      pointer-events: none;
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(19,21,28,.72);
+      border: 1px solid rgba(232,232,234,.12);
+      padding: 6px 8px;
+      border-radius: 999px;
+      backdrop-filter: blur(6px);
+    }
+    aside {
+      grid-row: 2 / 3;
+      border-left: 1px solid var(--line);
+      background: var(--panel);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-width: 320px;
+    }
+    .panel-header {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 12px;
+    }
+    .panel-header .h { font-size: 13px; letter-spacing: .02em; }
+    .panel-header .sub { font-size: 11px; color: var(--muted); }
+    .panel-body { padding: 12px; overflow: auto; }
+    .kv { display: grid; grid-template-columns: 110px 1fr; gap: 8px 10px; font-size: 12px; }
+    .k { color: var(--muted); }
+    .v { color: var(--ink); }
+    .opts { margin-top: 12px; border-top: 1px dashed rgba(232,232,234,.15); padding-top: 12px; }
+    .btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+    button {
+      font: inherit; font-size: 12px;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(232,232,234,.16);
+      color: var(--ink);
+      padding: 7px 9px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    button:hover { border-color: rgba(154,212,255,.35); }
+    button:active { transform: translateY(1px); }
+    footer {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--line);
+      align-items: center;
+      background: linear-gradient(to top, rgba(255,255,255,.03), rgba(255,255,255,0));
+    }
+    .crumb {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .nav {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .mini {
+      width: 120px; height: 54px;
+      border-radius: 10px;
+      border: 1px solid rgba(232,232,234,.16);
+      background: rgba(255,255,255,.02);
+      display: grid; place-items: center;
+    }
+    .nav button { padding: 6px 10px; border-radius: 999px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title">Hyperbolic Map UI</div>
+    <div class="hint">drag = pan (hyperbolic), wheel = zoom, click node = focus, shift+click = pin</div>
+  </header>
+
+  <div class="main">
+    <canvas id="c"></canvas>
+    <div class="hud">
+      <div class="pill" id="pill1">Focus: <span id="focusName">—</span></div>
+      <div class="pill" id="pill2">Nodes in view: <span id="nView">0</span> • Zoom: <span id="zoomK">1.00</span></div>
+    </div>
+  </div>
+
+  <aside>
+    <div class="panel-header">
+      <div>
+        <div class="h">Details Panel</div>
+        <div class="sub" id="panelSub">click a node</div>
+      </div>
+      <div class="sub" id="panelTag">info & options</div>
+    </div>
+    <div class="panel-body">
+      <div class="kv" id="kv"></div>
+      <div class="opts">
+        <div class="sub" style="margin-bottom:8px;">Actions</div>
+        <div class="btnrow">
+          <button id="btnHome">Home</button>
+          <button id="btnBack">Back</button>
+          <button id="btnFwd">Forward</button>
+          <button id="btnUnpin">Unpin all</button>
+          <button id="btnShuffle">New graph</button>
+        </div>
+      </div>
+    </div>
+    <div style="padding:10px 12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted);">
+      Model: Poincaré disk • Pan via Möbius isometries • Zoom via radial scaling
+    </div>
+  </aside>
+
+  <footer>
+    <div class="crumb" id="crumb">Home › …</div>
+    <div class="nav">
+      <div class="mini"><canvas id="mini" width="120" height="54"></canvas></div>
+      <button id="navBack">◀</button>
+      <button id="navHome">●</button>
+      <button id="navFwd">▶</button>
+    </div>
+  </footer>
+</div>
+
+<script>
+/**
+ * Hyperbolic map prototype.
+ * - State lives in Poincaré disk (complex z with |z|<1)
+ * - Pan/focus uses isometries:  z -> (z - a) / (1 - conj(a) z)
+ * - We keep a current transform parameter 'a' (|a|<1) representing "camera translation".
+ *   The rendered position is T_a(z). Clicking node sets a := z_node (so it moves to center).
+ * - Zoom is a separate radial scaling 'k' on the rendered z (UX zoom, not isometry).
+ */
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const mini = document.getElementById('mini');
+const mctx = mini.getContext('2d');
+
+const focusNameEl = document.getElementById('focusName');
+const nViewEl = document.getElementById('nView');
+const zoomKEl = document.getElementById('zoomK');
+const crumbEl = document.getElementById('crumb');
+const panelSub = document.getElementById('panelSub');
+const kv = document.getElementById('kv');
+
+const btnHome = document.getElementById('btnHome');
+const btnBack = document.getElementById('btnBack');
+const btnFwd = document.getElementById('btnFwd');
+const btnUnpin = document.getElementById('btnUnpin');
+const btnShuffle = document.getElementById('btnShuffle');
+
+const navBack = document.getElementById('navBack');
+const navHome = document.getElementById('navHome');
+const navFwd = document.getElementById('navFwd');
+
+function resize() {
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.floor(rect.width * dpr);
+  canvas.height = Math.floor(rect.height * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- complex helpers ----------
+const C = (re, im) => ({re, im});
+const add = (a,b)=>C(a.re+b.re,a.im+b.im);
+const sub = (a,b)=>C(a.re-b.re,a.im-b.im);
+const mul = (a,b)=>C(a.re*b.re - a.im*b.im, a.re*b.im + a.im*b.re);
+const conj = (a)=>C(a.re,-a.im);
+const abs2 = (a)=>a.re*a.re + a.im*a.im;
+const abs = (a)=>Math.sqrt(abs2(a));
+const div = (a,b)=>{
+  const d = abs2(b);
+  return C((a.re*b.re + a.im*b.im)/d, (a.im*b.re - a.re*b.im)/d);
+};
+const clampDisk = (a, eps=1e-6)=>{
+  const r = abs(a);
+  if (r >= 1) return C(a.re*(1-eps)/r, a.im*(1-eps)/r);
+  return a;
+};
+
+// Poincaré disk isometry moving "a" to 0:
+function T(a, z) { // (z - a) / (1 - conj(a) z)
+  const num = sub(z, a);
+  const den = sub(C(1,0), mul(conj(a), z));
+  return div(num, den);
+}
+
+// Inverse of T(a): T^{-1}(a, w) = (w + a) / (1 + conj(a) w)
+function Tinv(a, w) {
+  const num = add(w, a);
+  const den = add(C(1,0), mul(conj(a), w));
+  return div(num, den);
+}
+
+// Compose translations: applying T(b) after T(a) corresponds to an effective parameter.
+// We'll just do it numerically: find c such that T(c, z) ≈ T(b, T(a, z)).
+// For our UX, we can update 'a' by pulling small drag deltas through Tinv/T.
+function panByDelta(deltaDisk) {
+  // We want: rendered points shift by -deltaDisk in screen-disk space.
+  // Approx: update a so that origin maps to delta (or vice versa).
+  // If current rendered origin corresponds to T(a,0)= -a, we can adjust a in disk coords:
+  // We'll compute a' = Tinv(delta, a) ??? We'll do a small-step approach:
+  const step = deltaDisk;
+  // Move camera by composing with inverse translation of step:
+  // New transform parameter a' such that T(a', z) = T(step, T(a, z)) approximately.
+  // Equivalent to update a := Tinv(step, a) (empirically stable for small steps).
+  state.a = clampDisk(Tinv(step, state.a));
+}
+
+// ---------- graph generation ----------
+function randn() {
+  // Box-Muller
+  let u=0, v=0;
+  while(u===0) u=Math.random();
+  while(v===0) v=Math.random();
+  return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+}
+
+function sampleDisk(radiusBias=0.8) {
+  // bias points toward center a bit
+  const r = Math.min(0.98, Math.abs(randn())*0.25 + Math.random()*0.35);
+  const rr = Math.pow(r, radiusBias);
+  const t = Math.random()*Math.PI*2;
+  return C(rr*Math.cos(t), rr*Math.sin(t));
+}
+
+function makeTree(n=140, branching=3) {
+  const nodes = [];
+  const edges = [];
+  const root = { id: 0, name: "Home", depth: 0, parent: null, z: C(0,0), pinned: false };
+  nodes.push(root);
+
+  let id = 1;
+  let frontier = [root];
+  while (id < n && frontier.length) {
+    const parent = frontier.shift();
+    const k = 1 + Math.floor(Math.random()*branching);
+    for (let i=0; i<k && id<n; i++) {
+      const depth = parent.depth + 1;
+      // hyperbolic-ish growth: place child further out, around parent direction, with noise
+      const angle = Math.atan2(parent.z.im, parent.z.re) + (i - (k-1)/2)*0.6 + (Math.random()-0.5)*0.4;
+      const baseR = Math.min(0.96, 0.18 + depth*0.075 + Math.random()*0.05);
+      const z = clampDisk(C(baseR*Math.cos(angle), baseR*Math.sin(angle)));
+
+      const node = {
+        id, name: `Node ${id}`,
+        depth, parent: parent.id,
+        z, pinned: false,
+        tag: (depth<=2) ? "near" : (depth<=4 ? "mid" : "far"),
+      };
+      nodes.push(node);
+      edges.push([parent.id, id]);
+      id++;
+      if (depth < 7 && Math.random() < 0.88) frontier.push(node);
+    }
+  }
+  return {nodes, edges};
+}
+
+// ---------- state ----------
+const state = {
+  graph: makeTree(),
+  a: C(0,0),     // hyperbolic pan/focus param
+  k: 1.0,        // zoom
+  selected: 0,
+  history: [],
+  hIndex: -1,
+};
+
+function pushHistory(sel, a, k) {
+  // truncate forward
+  state.history = state.history.slice(0, state.hIndex + 1);
+  state.history.push({sel, a: C(a.re,a.im), k});
+  state.hIndex = state.history.length - 1;
+}
+
+function applyHistory(i) {
+  const h = state.history[i];
+  if (!h) return;
+  state.selected = h.sel;
+  state.a = C(h.a.re,h.a.im);
+  state.k = h.k;
+  updatePanel();
+}
+
+// init history
+pushHistory(state.selected, state.a, state.k);
+
+// ---------- UI mapping ----------
+function diskToScreen(z, W, H, pad=20) {
+  const R = Math.min(W,H)/2 - pad;
+  return {
+    x: W/2 + z.re*R,
+    y: H/2 + z.im*R,
+    R
+  };
+}
+function screenToDisk(x,y,W,H,pad=20) {
+  const R = Math.min(W,H)/2 - pad;
+  return C((x - W/2)/R, (y - H/2)/R);
+}
+
+function nodeScreenPos(node) {
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  const z1 = T(state.a, node.z);
+  const z2 = clampDisk(C(z1.re*state.k, z1.im*state.k));
+  return diskToScreen(z2, W, H);
+}
+
+function visibleNodes() {
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  let count=0;
+  for (const n of state.graph.nodes) {
+    const z1 = T(state.a, n.z);
+    const z2 = C(z1.re*state.k, z1.im*state.k);
+    if (abs2(z2) < 1.02*1.02) count++;
+  }
+  return count;
+}
+
+// ---------- rendering ----------
+function drawDisk(ctx, W, H, pad=20) {
+  const R = Math.min(W,H)/2 - pad;
+  ctx.save();
+  ctx.translate(W/2, H/2);
+
+  // outer circle
+  ctx.beginPath();
+  ctx.arc(0,0,R,0,Math.PI*2);
+  ctx.strokeStyle = "rgba(232,232,234,.18)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // subtle rings
+  ctx.lineWidth = 1;
+  for (let i=1; i<=4; i++) {
+    const rr = R * (i/5);
+    ctx.beginPath(); ctx.arc(0,0,rr,0,Math.PI*2);
+    ctx.strokeStyle = "rgba(232,232,234,.06)";
+    ctx.stroke();
+  }
+
+  // axes
+  ctx.beginPath(); ctx.moveTo(-R,0); ctx.lineTo(R,0);
+  ctx.strokeStyle = "rgba(232,232,234,.05)"; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,-R); ctx.lineTo(0,R);
+  ctx.strokeStyle = "rgba(232,232,234,.05)"; ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawEdge(u, v, W, H) {
+  // quick approx: draw as slightly bowed curve toward center (cheap cue of geodesics)
+  const pu = nodeScreenPos(u);
+  const pv = nodeScreenPos(v);
+  const cx = W/2, cy = H/2;
+  const mx = (pu.x + pv.x)/2;
+  const my = (pu.y + pv.y)/2;
+  const bend = 0.18;
+  const qx = mx + (cx - mx)*bend;
+  const qy = my + (cy - my)*bend;
+
+  ctx.beginPath();
+  ctx.moveTo(pu.x, pu.y);
+  ctx.quadraticCurveTo(qx, qy, pv.x, pv.y);
+  ctx.strokeStyle = "rgba(232,232,234,.10)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function drawNode(n, W, H) {
+  const p = nodeScreenPos(n);
+  const z1 = T(state.a, n.z);
+  const z2 = C(z1.re*state.k, z1.im*state.k);
+  const r2 = abs2(z2);
+
+  // size: nearer center appears larger; near boundary shrinks
+  const base = 7.5;
+  const size = base * (1.15 - 0.75*Math.min(1, r2));
+  const isSel = (n.id === state.selected);
+
+  // dot
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, isSel ? size*1.25 : size, 0, Math.PI*2);
+
+  const pinned = n.pinned;
+  if (isSel) {
+    ctx.fillStyle = "rgba(154,212,255,.85)";
+  } else if (pinned) {
+    ctx.fillStyle = "rgba(255,208,154,.75)";
+  } else {
+    ctx.fillStyle = "rgba(232,232,234,.65)";
+  }
+  ctx.fill();
+
+  // ring
+  ctx.strokeStyle = isSel ? "rgba(154,212,255,.38)" : "rgba(0,0,0,0)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // label for near-ish nodes
+  if (r2 < 0.42 || isSel) {
+    const label = n.name;
+    ctx.font = "12px ui-monospace, Menlo, Monaco, Consolas, monospace";
+    ctx.fillStyle = isSel ? "rgba(232,232,234,.92)" : "rgba(232,232,234,.78)";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, p.x + size + 6, p.y);
+  }
+}
+
+function draw() {
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  ctx.clearRect(0,0,W,H);
+
+  drawDisk(ctx, W, H);
+
+  // edges
+  const idToNode = new Map(state.graph.nodes.map(n=>[n.id,n]));
+  for (const [a,b] of state.graph.edges) {
+    const u = idToNode.get(a), v = idToNode.get(b);
+    drawEdge(u,v,W,H);
+  }
+
+  // nodes (draw far first)
+  const nodesSorted = [...state.graph.nodes].sort((x,y)=>{
+    const zx = T(state.a, x.z); const zy = T(state.a, y.z);
+    const rx = abs2(C(zx.re*state.k, zx.im*state.k));
+    const ry = abs2(C(zy.re*state.k, zy.im*state.k));
+    return ry - rx;
+  });
+  for (const n of nodesSorted) drawNode(n, W, H);
+
+  // HUD
+  nViewEl.textContent = String(visibleNodes());
+  zoomKEl.textContent = state.k.toFixed(2);
+
+  // mini-map
+  drawMini();
+
+  requestAnimationFrame(draw);
+}
+
+function drawMini() {
+  const W = mini.width, H = mini.height;
+  mctx.clearRect(0,0,W,H);
+
+  // disk
+  const R = Math.min(W,H)/2 - 6;
+  mctx.save();
+  mctx.translate(W/2, H/2);
+  mctx.beginPath(); mctx.arc(0,0,R,0,Math.PI*2);
+  mctx.strokeStyle = "rgba(232,232,234,.25)";
+  mctx.lineWidth = 1;
+  mctx.stroke();
+
+  // camera "a" visual: where the world-origin ended up
+  // world origin rendered position is T(a, 0) = -a
+  const cam = C(-state.a.re, -state.a.im);
+  mctx.beginPath();
+  mctx.arc(cam.re*R, cam.im*R, 2.8, 0, Math.PI*2);
+  mctx.fillStyle = "rgba(154,212,255,.85)";
+  mctx.fill();
+
+  // selected node visual
+  const sel = state.graph.nodes.find(n=>n.id===state.selected);
+  if (sel) {
+    const z1 = T(state.a, sel.z);
+    const z2 = clampDisk(C(z1.re*state.k, z1.im*state.k));
+    mctx.beginPath();
+    mctx.arc(z2.re*R, z2.im*R, 2.8, 0, Math.PI*2);
+    mctx.fillStyle = "rgba(255,208,154,.85)";
+    mctx.fill();
+  }
+
+  mctx.restore();
+}
+
+// ---------- interaction ----------
+let dragging = false;
+let last = null;
+
+canvas.addEventListener('pointerdown', (e)=>{
+  canvas.setPointerCapture(e.pointerId);
+  dragging = true;
+  last = {x:e.offsetX, y:e.offsetY};
+});
+
+canvas.addEventListener('pointermove', (e)=>{
+  if (!dragging) return;
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  const now = {x:e.offsetX, y:e.offsetY};
+
+  const d0 = screenToDisk(last.x, last.y, W, H);
+  const d1 = screenToDisk(now.x, now.y, W, H);
+  const delta = sub(d0, d1); // invert so drag feels natural
+
+  // scale delta down a bit, and also by zoom
+  const scale = 0.85 / Math.max(0.35, state.k);
+  const step = clampDisk(C(delta.re*scale, delta.im*scale));
+  panByDelta(step);
+
+  last = now;
+});
+
+canvas.addEventListener('pointerup', ()=>{
+  dragging = false;
+  last = null;
+});
+
+canvas.addEventListener('wheel', (e)=>{
+  e.preventDefault();
+  const dz = Math.exp(-e.deltaY * 0.0012);
+  const k0 = state.k;
+  state.k = Math.max(0.35, Math.min(2.25, state.k * dz));
+
+  if (Math.abs(state.k - k0) > 1e-6) {
+    // snapshot history on discrete wheel events (small enough)
+    pushHistory(state.selected, state.a, state.k);
+  }
+}, {passive:false});
+
+canvas.addEventListener('click', (e)=>{
+  // hit test nodes: find nearest in screen space
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+
+  let best = null;
+  let bestD2 = Infinity;
+  for (const n of state.graph.nodes) {
+    const p = nodeScreenPos(n);
+    const dx = p.x - e.offsetX;
+    const dy = p.y - e.offsetY;
+    const d2 = dx*dx + dy*dy;
+    if (d2 < bestD2) { bestD2 = d2; best = n; }
+  }
+  if (!best) return;
+
+  // threshold depends on zoom
+  const hitR = 18;
+  if (bestD2 > hitR*hitR) return;
+
+  if (e.shiftKey) {
+    best.pinned = !best.pinned;
+    updatePanel(best.id);
+    return;
+  }
+
+  // focus: choose a so that this node maps to center (T(a, z)=0 => a=z)
+  state.selected = best.id;
+  state.a = clampDisk(best.z);
+  pushHistory(state.selected, state.a, state.k);
+  updatePanel(best.id);
+});
+
+// ---------- details + breadcrumb ----------
+function updatePanel(selId = state.selected) {
+  const n = state.graph.nodes.find(x=>x.id===selId);
+  if (!n) return;
+
+  focusNameEl.textContent = n.name;
+  panelSub.textContent = `${n.name} • depth ${n.depth} • ${n.pinned ? "pinned" : "free"}`;
+
+  // breadcrumb from parents
+  const idToNode = new Map(state.graph.nodes.map(x=>[x.id,x]));
+  const path = [];
+  let cur = n;
+  while (cur) {
+    path.push(cur.name);
+    cur = (cur.parent == null) ? null : idToNode.get(cur.parent);
+  }
+  path.reverse();
+  crumbEl.textContent = path.join(" › ");
+
+  // key-values
+  kv.innerHTML = "";
+  const rows = [
+    ["id", String(n.id)],
+    ["name", n.name],
+    ["depth", String(n.depth)],
+    ["tag", n.tag || "—"],
+    ["pinned", n.pinned ? "true" : "false"],
+    ["disk |z|", abs(n.z).toFixed(3)],
+    ["camera a", `${state.a.re.toFixed(3)} + ${state.a.im.toFixed(3)}i`],
+    ["zoom k", state.k.toFixed(2)],
+  ];
+  for (const [k,v] of rows) {
+    const dk = document.createElement('div');
+    dk.className = "k";
+    dk.textContent = k;
+    const dv = document.createElement('div');
+    dv.className = "v";
+    dv.textContent = v;
+    kv.appendChild(dk);
+    kv.appendChild(dv);
+  }
+}
+updatePanel();
+
+// ---------- nav buttons ----------
+function goHome() {
+  state.selected = 0;
+  state.a = C(0,0);
+  state.k = 1.0;
+  pushHistory(state.selected, state.a, state.k);
+  updatePanel(0);
+}
+
+function back() {
+  if (state.hIndex > 0) {
+    state.hIndex--;
+    applyHistory(state.hIndex);
+  }
+}
+function forward() {
+  if (state.hIndex < state.history.length - 1) {
+    state.hIndex++;
+    applyHistory(state.hIndex);
+  }
+}
+function unpinAll() {
+  for (const n of state.graph.nodes) n.pinned = false;
+  updatePanel();
+}
+function shuffle() {
+  state.graph = makeTree(150, 4);
+  goHome();
+}
+
+btnHome.onclick = goHome;
+btnBack.onclick = back;
+btnFwd.onclick = forward;
+btnUnpin.onclick = unpinAll;
+btnShuffle.onclick = shuffle;
+
+navHome.onclick = goHome;
+navBack.onclick = back;
+navFwd.onclick = forward;
+
+// start render loop
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attention Visualizer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'SF Mono', 'Consolas', monospace;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      background: #15151f;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      border-bottom: 1px solid #333;
+    }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 500;
+      color: #f8a;
+    }
+
+    .input-section {
+      background: #12121c;
+      padding: 15px 20px;
+      border-bottom: 1px solid #333;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .input-row label {
+      color: #888;
+      font-size: 12px;
+    }
+
+    #text-input {
+      flex: 1;
+      background: #1a1a28;
+      border: 1px solid #333;
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+
+    #text-input:focus {
+      outline: none;
+      border-color: #f8a;
+    }
+
+    button {
+      background: #252535;
+      border: 1px solid #444;
+      color: #aaa;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+
+    button:hover {
+      background: #353545;
+      color: #fff;
+      border-color: #666;
+    }
+
+    button.active {
+      background: #8040a0;
+      border-color: #a060c0;
+      color: #fff;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      overflow: hidden;
+    }
+
+    .attention-panel {
+      padding: 20px;
+      overflow: auto;
+    }
+
+    .sidebar {
+      background: #12121c;
+      border-left: 1px solid #333;
+      padding: 15px;
+      overflow: auto;
+    }
+
+    .section-title {
+      font-size: 12px;
+      color: #888;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    /* Token display */
+    .tokens {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .token {
+      background: #252535;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 2px solid transparent;
+    }
+
+    .token:hover {
+      background: #353545;
+    }
+
+    .token.selected {
+      border-color: #f8a;
+      background: #352535;
+    }
+
+    .token.highlight {
+      background: rgba(255, 136, 170, 0.3);
+    }
+
+    /* Attention heatmap */
+    .heatmap-container {
+      margin-top: 20px;
+    }
+
+    .heatmap {
+      display: inline-block;
+      background: #0f0f18;
+      border-radius: 4px;
+      padding: 10px;
+    }
+
+    .heatmap-row {
+      display: flex;
+      align-items: center;
+    }
+
+    .heatmap-label {
+      width: 80px;
+      font-size: 11px;
+      color: #888;
+      text-align: right;
+      padding-right: 10px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .heatmap-label.col {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      transform: rotate(180deg);
+      height: 80px;
+      text-align: left;
+      padding-bottom: 10px;
+      padding-right: 0;
+      width: auto;
+    }
+
+    .heatmap-cell {
+      width: 40px;
+      height: 40px;
+      margin: 1px;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: transform 0.1s;
+      position: relative;
+    }
+
+    .heatmap-cell:hover {
+      transform: scale(1.1);
+      z-index: 10;
+    }
+
+    .heatmap-cell::after {
+      content: attr(data-value);
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: rgba(255,255,255,0.7);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .heatmap-cell:hover::after {
+      opacity: 1;
+    }
+
+    /* Head selector */
+    .head-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .head-btn {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+    }
+
+    /* QKV visualization */
+    .qkv-section {
+      margin-top: 20px;
+    }
+
+    .matrix-row {
+      margin-bottom: 15px;
+    }
+
+    .matrix-label {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 5px;
+    }
+
+    .matrix-vis {
+      display: flex;
+      gap: 2px;
+      flex-wrap: wrap;
+    }
+
+    .matrix-cell {
+      width: 8px;
+      height: 8px;
+      border-radius: 1px;
+    }
+
+    /* Flow diagram */
+    .flow-diagram {
+      margin-top: 20px;
+      padding: 15px;
+      background: #0f0f18;
+      border-radius: 4px;
+    }
+
+    .flow-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .flow-arrow {
+      color: #666;
+    }
+
+    .flow-box {
+      background: #1a1a28;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    .flow-box.q { border-left: 3px solid #f66; }
+    .flow-box.k { border-left: 3px solid #6f6; }
+    .flow-box.v { border-left: 3px solid #66f; }
+    .flow-box.attn { border-left: 3px solid #f8a; }
+    .flow-box.out { border-left: 3px solid #ff0; }
+
+    /* Attention lines */
+    .attention-lines {
+      position: relative;
+      margin: 20px 0;
+      padding: 20px 0;
+    }
+
+    .attn-tokens-row {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+
+    .attn-token {
+      padding: 8px 16px;
+      background: #252535;
+      border-radius: 4px;
+      font-size: 13px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .attn-token.source {
+      background: #402535;
+      border: 1px solid #f8a;
+    }
+
+    svg.attn-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    /* Settings */
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #222;
+    }
+
+    .setting-label {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .setting-value {
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    input[type="range"] {
+      width: 100px;
+      accent-color: #f8a;
+    }
+
+    select {
+      background: #252535;
+      border: 1px solid #444;
+      color: #aaa;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 11px;
+    }
+
+    /* Color scale */
+    .color-scale {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #222;
+    }
+
+    .scale-gradient {
+      flex: 1;
+      height: 12px;
+      border-radius: 2px;
+      background: linear-gradient(to right, #0f0f18, #f8a);
+    }
+
+    .scale-label {
+      font-size: 10px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Attention Visualizer</h1>
+      <span style="color: #666; font-size: 12px;">Self-attention mechanism explorer</span>
+    </header>
+
+    <div class="input-section">
+      <div class="input-row">
+        <label>Input sequence:</label>
+        <input type="text" id="text-input" value="The cat sat on the mat" placeholder="Enter text...">
+        <button id="btn-tokenize">Tokenize</button>
+        <button id="btn-example">Load Example</button>
+      </div>
+    </div>
+
+    <main>
+      <div class="attention-panel">
+        <div class="section-title">Tokens (click to select source)</div>
+        <div class="tokens" id="tokens"></div>
+
+        <div class="attention-lines" id="attention-lines">
+          <div class="attn-tokens-row" id="attn-tokens-top"></div>
+          <svg class="attn-svg" id="attn-svg"></svg>
+          <div style="height: 100px;"></div>
+          <div class="attn-tokens-row" id="attn-tokens-bottom"></div>
+        </div>
+
+        <div class="section-title">Attention Matrix (Head <span id="current-head">1</span>)</div>
+        <div class="heatmap-container">
+          <div class="heatmap" id="heatmap"></div>
+        </div>
+      </div>
+
+      <div class="sidebar">
+        <div class="section-title">Attention Heads</div>
+        <div class="head-selector" id="head-selector"></div>
+
+        <div class="section-title">Attention Flow</div>
+        <div class="flow-diagram">
+          <div class="flow-step">
+            <div class="flow-box">Input</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box q">Q = XWq</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-box">Input</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box k">K = XWk</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-box">Input</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box v">V = XWv</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-box attn">A = softmax(QK^T/√d)</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-box out">Output = AV</div>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top: 20px;">Settings</div>
+        <div class="setting-row">
+          <span class="setting-label">Number of heads</span>
+          <select id="num-heads">
+            <option value="4">4</option>
+            <option value="8" selected>8</option>
+            <option value="12">12</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Head dimension</span>
+          <select id="head-dim">
+            <option value="32">32</option>
+            <option value="64" selected>64</option>
+            <option value="128">128</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Temperature</span>
+          <input type="range" id="temperature" min="0.1" max="2" step="0.1" value="1">
+          <span class="setting-value" id="temp-value">1.0</span>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Causal masking</span>
+          <input type="checkbox" id="causal-mask">
+        </div>
+
+        <div class="color-scale">
+          <span class="scale-label">0</span>
+          <div class="scale-gradient"></div>
+          <span class="scale-label">1</span>
+        </div>
+
+        <div class="qkv-section">
+          <div class="section-title" style="margin-top: 20px;">Q/K/V Projections</div>
+          <div class="matrix-row">
+            <div class="matrix-label" style="color: #f66;">Query (selected token)</div>
+            <div class="matrix-vis" id="query-vis"></div>
+          </div>
+          <div class="matrix-row">
+            <div class="matrix-label" style="color: #6f6;">Keys (all tokens)</div>
+            <div class="matrix-vis" id="key-vis"></div>
+          </div>
+          <div class="matrix-row">
+            <div class="matrix-label" style="color: #66f;">Values (all tokens)</div>
+            <div class="matrix-vis" id="value-vis"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // ========================================
+    // State
+    // ========================================
+
+    const state = {
+      tokens: [],
+      selectedToken: null,
+      currentHead: 0,
+      numHeads: 8,
+      headDim: 64,
+      temperature: 1.0,
+      causalMask: false,
+      attention: null,  // [numHeads, seqLen, seqLen]
+      Q: null,
+      K: null,
+      V: null
+    };
+
+    // ========================================
+    // Tokenization (simple whitespace)
+    // ========================================
+
+    function tokenize(text) {
+      // Simple whitespace tokenization with special tokens
+      const words = text.trim().split(/\s+/);
+      return words.map((word, i) => ({
+        id: i,
+        text: word,
+        embedding: randomEmbedding(state.headDim * state.numHeads)
+      }));
+    }
+
+    function randomEmbedding(dim) {
+      // Generate pseudo-random embedding (seeded by token)
+      const emb = new Float32Array(dim);
+      for (let i = 0; i < dim; i++) {
+        emb[i] = (Math.random() - 0.5) * 2;
+      }
+      // Normalize
+      const norm = Math.sqrt(emb.reduce((s, x) => s + x * x, 0));
+      for (let i = 0; i < dim; i++) emb[i] /= norm;
+      return emb;
+    }
+
+    // ========================================
+    // Attention Computation
+    // ========================================
+
+    function computeAttention() {
+      const seqLen = state.tokens.length;
+      const { numHeads, headDim, temperature, causalMask } = state;
+      const totalDim = numHeads * headDim;
+
+      // Generate random projection matrices (simplified)
+      const Wq = randomMatrix(totalDim, totalDim);
+      const Wk = randomMatrix(totalDim, totalDim);
+      const Wv = randomMatrix(totalDim, totalDim);
+
+      // Compute Q, K, V for all tokens
+      state.Q = new Float32Array(seqLen * totalDim);
+      state.K = new Float32Array(seqLen * totalDim);
+      state.V = new Float32Array(seqLen * totalDim);
+
+      for (let i = 0; i < seqLen; i++) {
+        const emb = state.tokens[i].embedding;
+        for (let j = 0; j < totalDim; j++) {
+          let q = 0, k = 0, v = 0;
+          for (let d = 0; d < totalDim; d++) {
+            q += emb[d] * Wq[d * totalDim + j];
+            k += emb[d] * Wk[d * totalDim + j];
+            v += emb[d] * Wv[d * totalDim + j];
+          }
+          state.Q[i * totalDim + j] = q;
+          state.K[i * totalDim + j] = k;
+          state.V[i * totalDim + j] = v;
+        }
+      }
+
+      // Compute attention for each head
+      state.attention = new Float32Array(numHeads * seqLen * seqLen);
+      const scale = 1 / (Math.sqrt(headDim) * temperature);
+
+      for (let h = 0; h < numHeads; h++) {
+        const headOffset = h * headDim;
+
+        for (let i = 0; i < seqLen; i++) {
+          // Compute attention scores
+          const scores = new Float32Array(seqLen);
+          let maxScore = -Infinity;
+
+          for (let j = 0; j < seqLen; j++) {
+            // Apply causal mask
+            if (causalMask && j > i) {
+              scores[j] = -Infinity;
+              continue;
+            }
+
+            // Dot product Q[i] · K[j]
+            let dot = 0;
+            for (let d = 0; d < headDim; d++) {
+              const qi = state.Q[i * totalDim + headOffset + d];
+              const kj = state.K[j * totalDim + headOffset + d];
+              dot += qi * kj;
+            }
+            scores[j] = dot * scale;
+            maxScore = Math.max(maxScore, scores[j]);
+          }
+
+          // Softmax
+          let sumExp = 0;
+          for (let j = 0; j < seqLen; j++) {
+            if (scores[j] === -Infinity) {
+              scores[j] = 0;
+            } else {
+              scores[j] = Math.exp(scores[j] - maxScore);
+              sumExp += scores[j];
+            }
+          }
+
+          for (let j = 0; j < seqLen; j++) {
+            const attn = sumExp > 0 ? scores[j] / sumExp : 0;
+            state.attention[h * seqLen * seqLen + i * seqLen + j] = attn;
+          }
+        }
+      }
+    }
+
+    function randomMatrix(rows, cols) {
+      const m = new Float32Array(rows * cols);
+      const scale = 1 / Math.sqrt(cols);
+      for (let i = 0; i < m.length; i++) {
+        m[i] = (Math.random() - 0.5) * 2 * scale;
+      }
+      return m;
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+
+    function renderTokens() {
+      const container = document.getElementById('tokens');
+      container.innerHTML = state.tokens.map((t, i) => `
+        <div class="token ${state.selectedToken === i ? 'selected' : ''}" data-id="${i}">
+          ${t.text}
+        </div>
+      `).join('');
+
+      container.querySelectorAll('.token').forEach(el => {
+        el.addEventListener('click', () => {
+          state.selectedToken = parseInt(el.dataset.id);
+          render();
+        });
+      });
+    }
+
+    function renderAttentionLines() {
+      const topRow = document.getElementById('attn-tokens-top');
+      const bottomRow = document.getElementById('attn-tokens-bottom');
+      const svg = document.getElementById('attn-svg');
+
+      if (state.selectedToken === null || !state.attention) {
+        topRow.innerHTML = '';
+        bottomRow.innerHTML = '';
+        svg.innerHTML = '';
+        return;
+      }
+
+      const seqLen = state.tokens.length;
+      const head = state.currentHead;
+
+      // Render tokens
+      topRow.innerHTML = state.tokens.map((t, i) => {
+        const attn = state.attention[head * seqLen * seqLen + state.selectedToken * seqLen + i];
+        return `<div class="attn-token" data-idx="${i}" style="opacity: ${0.3 + attn * 0.7}">${t.text}</div>`;
+      }).join('');
+
+      bottomRow.innerHTML = `<div class="attn-token source">${state.tokens[state.selectedToken].text}</div>`;
+
+      // Draw attention lines
+      requestAnimationFrame(() => {
+        const container = document.getElementById('attention-lines');
+        const rect = container.getBoundingClientRect();
+        const topTokens = topRow.querySelectorAll('.attn-token');
+        const bottomToken = bottomRow.querySelector('.attn-token');
+
+        if (!bottomToken) return;
+
+        const bottomRect = bottomToken.getBoundingClientRect();
+        const bottomX = bottomRect.left + bottomRect.width / 2 - rect.left;
+        const bottomY = bottomRect.top - rect.top;
+
+        let paths = '';
+        topTokens.forEach((el, i) => {
+          const topRect = el.getBoundingClientRect();
+          const topX = topRect.left + topRect.width / 2 - rect.left;
+          const topY = topRect.bottom - rect.top;
+
+          const attn = state.attention[head * seqLen * seqLen + state.selectedToken * seqLen + i];
+          const opacity = Math.max(0.1, attn);
+          const width = 1 + attn * 4;
+
+          paths += `<path d="M${topX},${topY} C${topX},${(topY + bottomY) / 2} ${bottomX},${(topY + bottomY) / 2} ${bottomX},${bottomY}"
+            stroke="rgba(255, 136, 170, ${opacity})" stroke-width="${width}" fill="none"/>`;
+        });
+
+        svg.innerHTML = paths;
+      });
+    }
+
+    function renderHeatmap() {
+      const container = document.getElementById('heatmap');
+      const seqLen = state.tokens.length;
+      const head = state.currentHead;
+
+      if (!state.attention || seqLen === 0) {
+        container.innerHTML = '<div style="color: #666; padding: 20px;">No attention computed</div>';
+        return;
+      }
+
+      // Column headers
+      let html = '<div class="heatmap-row"><div class="heatmap-label"></div>';
+      for (let j = 0; j < seqLen; j++) {
+        html += `<div class="heatmap-label col">${state.tokens[j].text}</div>`;
+      }
+      html += '</div>';
+
+      // Rows
+      for (let i = 0; i < seqLen; i++) {
+        html += `<div class="heatmap-row"><div class="heatmap-label">${state.tokens[i].text}</div>`;
+        for (let j = 0; j < seqLen; j++) {
+          const attn = state.attention[head * seqLen * seqLen + i * seqLen + j];
+          const color = attentionColor(attn);
+          html += `<div class="heatmap-cell" style="background: ${color}" data-value="${attn.toFixed(2)}"
+            data-i="${i}" data-j="${j}"></div>`;
+        }
+        html += '</div>';
+      }
+
+      container.innerHTML = html;
+
+      // Click handlers
+      container.querySelectorAll('.heatmap-cell').forEach(cell => {
+        cell.addEventListener('click', () => {
+          state.selectedToken = parseInt(cell.dataset.i);
+          render();
+        });
+      });
+    }
+
+    function attentionColor(value) {
+      // Gradient from dark to pink
+      const r = Math.round(15 + value * 240);
+      const g = Math.round(15 + value * 80);
+      const b = Math.round(24 + value * 130);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    function renderHeadSelector() {
+      const container = document.getElementById('head-selector');
+      container.innerHTML = '';
+
+      for (let h = 0; h < state.numHeads; h++) {
+        const btn = document.createElement('button');
+        btn.className = `head-btn ${state.currentHead === h ? 'active' : ''}`;
+        btn.textContent = h + 1;
+        btn.addEventListener('click', () => {
+          state.currentHead = h;
+          document.getElementById('current-head').textContent = h + 1;
+          render();
+        });
+        container.appendChild(btn);
+      }
+    }
+
+    function renderQKV() {
+      const queryVis = document.getElementById('query-vis');
+      const keyVis = document.getElementById('key-vis');
+      const valueVis = document.getElementById('value-vis');
+
+      if (state.selectedToken === null || !state.Q) {
+        queryVis.innerHTML = '';
+        keyVis.innerHTML = '';
+        valueVis.innerHTML = '';
+        return;
+      }
+
+      const { numHeads, headDim } = state;
+      const totalDim = numHeads * headDim;
+      const head = state.currentHead;
+      const seqLen = state.tokens.length;
+
+      // Query for selected token
+      queryVis.innerHTML = '';
+      for (let d = 0; d < headDim; d++) {
+        const val = state.Q[state.selectedToken * totalDim + head * headDim + d];
+        const cell = document.createElement('div');
+        cell.className = 'matrix-cell';
+        cell.style.background = valueColor(val, '#f66');
+        queryVis.appendChild(cell);
+      }
+
+      // Keys for all tokens
+      keyVis.innerHTML = '';
+      for (let i = 0; i < seqLen; i++) {
+        for (let d = 0; d < Math.min(8, headDim); d++) {
+          const val = state.K[i * totalDim + head * headDim + d];
+          const cell = document.createElement('div');
+          cell.className = 'matrix-cell';
+          cell.style.background = valueColor(val, '#6f6');
+          keyVis.appendChild(cell);
+        }
+      }
+
+      // Values for all tokens
+      valueVis.innerHTML = '';
+      for (let i = 0; i < seqLen; i++) {
+        for (let d = 0; d < Math.min(8, headDim); d++) {
+          const val = state.V[i * totalDim + head * headDim + d];
+          const cell = document.createElement('div');
+          cell.className = 'matrix-cell';
+          cell.style.background = valueColor(val, '#66f');
+          valueVis.appendChild(cell);
+        }
+      }
+    }
+
+    function valueColor(val, baseColor) {
+      // Map value to color intensity
+      const intensity = Math.min(1, Math.abs(val));
+      const r = parseInt(baseColor.slice(1, 2), 16) * 17;
+      const g = parseInt(baseColor.slice(2, 3), 16) * 17;
+      const b = parseInt(baseColor.slice(3, 4), 16) * 17;
+      return `rgba(${r}, ${g}, ${b}, ${0.2 + intensity * 0.8})`;
+    }
+
+    function render() {
+      renderTokens();
+      renderHeatmap();
+      renderAttentionLines();
+      renderQKV();
+
+      // Highlight tokens based on attention
+      if (state.selectedToken !== null && state.attention) {
+        const seqLen = state.tokens.length;
+        const head = state.currentHead;
+        document.querySelectorAll('#tokens .token').forEach((el, i) => {
+          const attn = state.attention[head * seqLen * seqLen + state.selectedToken * seqLen + i];
+          if (attn > 0.1) {
+            el.classList.add('highlight');
+            el.style.opacity = 0.4 + attn * 0.6;
+          } else {
+            el.classList.remove('highlight');
+            el.style.opacity = 1;
+          }
+        });
+      }
+    }
+
+    // ========================================
+    // Event Handlers
+    // ========================================
+
+    document.getElementById('btn-tokenize').addEventListener('click', () => {
+      const text = document.getElementById('text-input').value;
+      state.tokens = tokenize(text);
+      state.selectedToken = null;
+      computeAttention();
+      renderHeadSelector();
+      render();
+    });
+
+    document.getElementById('btn-example').addEventListener('click', () => {
+      document.getElementById('text-input').value = 'The quick brown fox jumps over the lazy dog';
+      document.getElementById('btn-tokenize').click();
+    });
+
+    document.getElementById('num-heads').addEventListener('change', (e) => {
+      state.numHeads = parseInt(e.target.value);
+      state.currentHead = Math.min(state.currentHead, state.numHeads - 1);
+      if (state.tokens.length > 0) {
+        state.tokens.forEach(t => {
+          t.embedding = randomEmbedding(state.headDim * state.numHeads);
+        });
+        computeAttention();
+      }
+      renderHeadSelector();
+      render();
+    });
+
+    document.getElementById('head-dim').addEventListener('change', (e) => {
+      state.headDim = parseInt(e.target.value);
+      if (state.tokens.length > 0) {
+        state.tokens.forEach(t => {
+          t.embedding = randomEmbedding(state.headDim * state.numHeads);
+        });
+        computeAttention();
+      }
+      render();
+    });
+
+    document.getElementById('temperature').addEventListener('input', (e) => {
+      state.temperature = parseFloat(e.target.value);
+      document.getElementById('temp-value').textContent = state.temperature.toFixed(1);
+      if (state.tokens.length > 0) {
+        computeAttention();
+        render();
+      }
+    });
+
+    document.getElementById('causal-mask').addEventListener('change', (e) => {
+      state.causalMask = e.target.checked;
+      if (state.tokens.length > 0) {
+        computeAttention();
+        render();
+      }
+    });
+
+    // ========================================
+    // Initialize
+    // ========================================
+
+    function init() {
+      renderHeadSelector();
+      // Auto-tokenize initial text
+      document.getElementById('btn-tokenize').click();
+    }
+
+    init();
+  </script>
+</body>
+</html>

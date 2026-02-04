@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Umbra Lab - Hyperbolic Geometry Playground</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface-alt: #1a1a24;
+      --border: rgba(255,255,255,0.1);
+      --text: #e0e0e0;
+      --text-dim: #888;
+      --accent: #80ffff;
+      --accent-dim: rgba(128,255,255,0.2);
+      --success: #4ade80;
+      --error: #f87171;
+      --warning: #fbbf24;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .logo-icon { font-size: 1.5rem; }
+    .logo-text { font-weight: 500; letter-spacing: 0.1em; }
+    .logo-sub { color: var(--text-dim); font-size: 0.875rem; margin-left: 0.5rem; }
+
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    button {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }
+
+    button.primary:hover {
+      background: #60dddd;
+    }
+
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    .panel {
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .panel-tabs {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .tab {
+      padding: 0.25rem 0.75rem;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+
+    .tab.active {
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Editor Panel */
+    #editor {
+      flex: 1;
+      background: var(--bg);
+      color: var(--text);
+      border: none;
+      padding: 1rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      resize: none;
+      outline: none;
+    }
+
+    /* Canvas Panel */
+    #canvas-container {
+      flex: 1;
+      position: relative;
+      background: var(--bg);
+    }
+
+    #canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .canvas-overlay {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .canvas-info {
+      background: rgba(0,0,0,0.7);
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-family: monospace;
+    }
+
+    /* Output Panel */
+    #output {
+      flex: 1;
+      background: var(--surface-alt);
+      padding: 1rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .output-line { margin-bottom: 0.25rem; }
+    .output-line.error { color: var(--error); }
+    .output-line.success { color: var(--success); }
+    .output-line.info { color: var(--text-dim); }
+
+    /* Examples sidebar */
+    .examples {
+      padding: 1rem;
+      overflow: auto;
+    }
+
+    .example-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .example-item:hover {
+      border-color: var(--accent);
+    }
+
+    .example-item h4 {
+      font-size: 0.875rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .example-item p {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    /* Split layout adjustment */
+    @media (max-width: 900px) {
+      .main {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html" class="logo">
+      <span class="logo-icon">🧪</span>
+      <span class="logo-text">UMBRA</span>
+      <span class="logo-sub">Lab</span>
+    </a>
+    <div class="toolbar">
+      <button onclick="runCode()">▶ Run</button>
+      <button onclick="clearCanvas()">Clear Canvas</button>
+      <button onclick="clearOutput()">Clear Output</button>
+      <button onclick="exportSVG()">Export SVG</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <!-- Left: Code Editor -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Code</span>
+        <div class="panel-tabs">
+          <button class="tab active" onclick="switchTab('editor')">Editor</button>
+          <button class="tab" onclick="switchTab('examples')">Examples</button>
+        </div>
+      </div>
+      <div class="panel-content" id="editor-panel">
+        <textarea id="editor" spellcheck="false">// Umbra Lab - Hyperbolic Geometry Playground
+// The following are available:
+//   - HyperbolicAlgebra (HA): gyrovector ops, parallel transport
+//   - HyperbolicProjections: Poincaré, Klein, Half-plane models
+//   - HyperbolicCompute: wavelets, optimization, flow
+//   - ctx: 2D canvas context
+//   - C(re, im): create complex number
+//   - drawDisk(): draw Poincaré disk boundary
+//   - drawPoint(z, color, size): draw point at complex z
+//   - drawGeodesic(z1, z2, color): draw geodesic arc
+//   - drawCircle(center, radius, color): draw hyperbolic circle
+
+// Example: Draw a hyperbolic triangle
+drawDisk();
+
+const p1 = C(0.3, 0.2);
+const p2 = C(-0.4, 0.3);
+const p3 = C(0.1, -0.5);
+
+drawGeodesic(p1, p2, '#ff6b6b');
+drawGeodesic(p2, p3, '#4ecdc4');
+drawGeodesic(p3, p1, '#ffe66d');
+
+drawPoint(p1, '#ff6b6b', 8);
+drawPoint(p2, '#4ecdc4', 8);
+drawPoint(p3, '#ffe66d', 8);
+
+log('Triangle vertices:');
+log('  p1 = ' + p1.re.toFixed(3) + ' + ' + p1.im.toFixed(3) + 'i');
+log('  p2 = ' + p2.re.toFixed(3) + ' + ' + p2.im.toFixed(3) + 'i');
+log('  p3 = ' + p3.re.toFixed(3) + ' + ' + p3.im.toFixed(3) + 'i');
+
+// Calculate hyperbolic distances using projections
+if (window.HyperbolicProjections) {
+  const P = HyperbolicProjections.PoincareDisk;
+  log('\\nHyperbolic distances:');
+  log('  d(p1,p2) = ' + P.distance(p1, p2).toFixed(4));
+  log('  d(p2,p3) = ' + P.distance(p2, p3).toFixed(4));
+  log('  d(p3,p1) = ' + P.distance(p3, p1).toFixed(4));
+}
+</textarea>
+      </div>
+      <div class="panel-content examples" id="examples-panel" style="display: none;">
+        <div class="example-item" onclick="loadExample('geodesics')">
+          <h4>Geodesic Fan</h4>
+          <p>Draw multiple geodesics from a point</p>
+        </div>
+        <div class="example-item" onclick="loadExample('tiling')">
+          <h4>Hyperbolic Tiling</h4>
+          <p>Generate a {7,3} tiling pattern</p>
+        </div>
+        <div class="example-item" onclick="loadExample('horocycles')">
+          <h4>Horocycles</h4>
+          <p>Circles tangent to the boundary</p>
+        </div>
+        <div class="example-item" onclick="loadExample('transport')">
+          <h4>Parallel Transport</h4>
+          <p>Transport a vector along a geodesic</p>
+        </div>
+        <div class="example-item" onclick="loadExample('midpoints')">
+          <h4>Hyperbolic Midpoints</h4>
+          <p>Compare Einstein vs Euclidean midpoint</p>
+        </div>
+        <div class="example-item" onclick="loadExample('klein')">
+          <h4>Klein Model</h4>
+          <p>Same geometry, straight geodesics</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Canvas + Output -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Canvas</span>
+        <div class="canvas-info" id="mouse-coords">x: 0.000, y: 0.000</div>
+      </div>
+      <div class="panel-content">
+        <div id="canvas-container">
+          <canvas id="canvas"></canvas>
+        </div>
+        <div id="output"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load library modules -->
+  <script src="hyperbolic-algebra.js"></script>
+  <script src="hyperbolic-projections.js"></script>
+  <script src="hyperbolic-compute.js"></script>
+  <script src="lorentz-geometry.js"></script>
+
+  <script>
+    'use strict';
+
+    // Canvas setup
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const output = document.getElementById('output');
+
+    let W, H, cx, cy, R;
+
+    function resize() {
+      const container = document.getElementById('canvas-container');
+      const rect = container.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      W = rect.width;
+      H = rect.height;
+      cx = W / 2;
+      cy = H / 2;
+      R = Math.min(W, H) / 2 - 40;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Complex number helper
+    function C(re, im = 0) {
+      return { re, im };
+    }
+
+    // Coordinate transforms
+    function toScreen(z) {
+      return { x: cx + z.re * R, y: cy + z.im * R };
+    }
+
+    function fromScreen(x, y) {
+      return C((x - cx) / R, (y - cy) / R);
+    }
+
+    // Drawing helpers
+    function drawDisk(fillColor = '#0a0a0f', strokeColor = 'rgba(128,255,255,0.3)') {
+      ctx.fillStyle = fillColor;
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(128,255,255,0.02)';
+      ctx.fill();
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    function drawPoint(z, color = '#80ffff', size = 6) {
+      const p = toScreen(z);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+
+    function drawGeodesic(z1, z2, color = '#80ffff', lineWidth = 2) {
+      const p1 = toScreen(z1);
+      const p2 = toScreen(z2);
+
+      // Check if geodesic is nearly a diameter
+      const cross = z1.re * z2.im - z1.im * z2.re;
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+
+      if (Math.abs(cross) < 0.001) {
+        // Nearly a diameter - draw straight line
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+      } else {
+        // Compute circle for geodesic
+        const r1 = z1.re * z1.re + z1.im * z1.im;
+        const r2 = z2.re * z2.re + z2.im * z2.im;
+        const denom = 2 * cross;
+        const gx = ((1 + r1) * z2.im - (1 + r2) * z1.im) / denom;
+        const gy = ((1 + r2) * z1.re - (1 + r1) * z2.re) / denom;
+        const gr = Math.sqrt((z1.re - gx) ** 2 + (z1.im - gy) ** 2);
+
+        const gcx = cx + gx * R;
+        const gcy = cy + gy * R;
+        const gR = gr * R;
+
+        const a1 = Math.atan2(p1.y - gcy, p1.x - gcx);
+        const a2 = Math.atan2(p2.y - gcy, p2.x - gcx);
+
+        ctx.beginPath();
+        // Determine arc direction
+        let da = a2 - a1;
+        if (da > Math.PI) da -= 2 * Math.PI;
+        if (da < -Math.PI) da += 2 * Math.PI;
+        ctx.arc(gcx, gcy, gR, a1, a2, da > 0);
+        ctx.stroke();
+      }
+    }
+
+    function drawCircle(center, hypRadius, color = '#80ffff', lineWidth = 1) {
+      // Hyperbolic circle centered at 'center' with hyperbolic radius
+      // In Poincaré disk, this is still a Euclidean circle but offset from center
+      const cAbs = Math.sqrt(center.re ** 2 + center.im ** 2);
+      const eucR = Math.tanh(hypRadius / 2);
+
+      if (cAbs < 0.001) {
+        // Center at origin - simple case
+        const p = toScreen(center);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, eucR * R, 0, Math.PI * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+      } else {
+        // Need to compute actual Euclidean circle parameters
+        // For now, approximate
+        const p = toScreen(center);
+        const scaleFactor = 1 / (1 - cAbs * cAbs);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, eucR * R * scaleFactor * (1 - cAbs), 0, Math.PI * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+      }
+    }
+
+    function drawHorocycle(idealAngle, euclideanRadius, color = '#ffd700') {
+      // Horocycle tangent to boundary at angle
+      const ix = Math.cos(idealAngle);
+      const iy = Math.sin(idealAngle);
+      const hcx = cx + (1 - euclideanRadius) * ix * R;
+      const hcy = cy + (1 - euclideanRadius) * iy * R;
+
+      ctx.beginPath();
+      ctx.arc(hcx, hcy, euclideanRadius * R, 0, Math.PI * 2);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Output logging
+    function log(msg, type = '') {
+      const line = document.createElement('div');
+      line.className = 'output-line' + (type ? ' ' + type : '');
+      line.textContent = msg;
+      output.appendChild(line);
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function clearOutput() {
+      output.innerHTML = '';
+    }
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, W, H);
+      drawDisk();
+    }
+
+    // Run code
+    function runCode() {
+      clearOutput();
+      const code = document.getElementById('editor').value;
+
+      try {
+        log('Running...', 'info');
+        eval(code);
+        log('Done.', 'success');
+      } catch (e) {
+        log('Error: ' + e.message, 'error');
+        console.error(e);
+      }
+    }
+
+    // Tab switching
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+
+      document.getElementById('editor-panel').style.display = tab === 'editor' ? 'flex' : 'none';
+      document.getElementById('examples-panel').style.display = tab === 'examples' ? 'block' : 'none';
+    }
+
+    // Examples
+    const examples = {
+      geodesics: `// Geodesic fan from origin
+drawDisk();
+const center = C(0, 0);
+const numRays = 12;
+
+for (let i = 0; i < numRays; i++) {
+  const angle = (i / numRays) * Math.PI * 2;
+  const r = 0.9;
+  const target = C(r * Math.cos(angle), r * Math.sin(angle));
+  const hue = (i / numRays) * 360;
+  drawGeodesic(center, target, \`hsl(\${hue}, 70%, 60%)\`);
+}
+
+drawPoint(center, '#fff', 8);
+log('Drew ' + numRays + ' geodesics from origin');`,
+
+      tiling: `// Hyperbolic {7,3} tiling approximation
+drawDisk();
+
+function drawPolygon(center, radius, sides, rotation = 0) {
+  const points = [];
+  for (let i = 0; i < sides; i++) {
+    const a = rotation + (i / sides) * Math.PI * 2;
+    const r = Math.tanh(radius / 2);
+    points.push(C(
+      center.re + r * Math.cos(a),
+      center.im + r * Math.sin(a)
+    ));
+  }
+  for (let i = 0; i < sides; i++) {
+    drawGeodesic(points[i], points[(i + 1) % sides], 'rgba(128,255,255,0.5)', 1);
+  }
+  return points;
+}
+
+// Central heptagon
+const verts = drawPolygon(C(0, 0), 0.8, 7, Math.PI / 2);
+
+// Adjacent heptagons at each vertex
+verts.forEach((v, i) => {
+  const angle = Math.atan2(v.im, v.re);
+  const dist = Math.sqrt(v.re ** 2 + v.im ** 2);
+  const newCenter = C(
+    0.6 * Math.cos(angle),
+    0.6 * Math.sin(angle)
+  );
+  drawPolygon(newCenter, 0.4, 7, angle);
+});
+
+log('Approximated {7,3} tiling');`,
+
+      horocycles: `// Horocycles - circles tangent to the boundary
+drawDisk();
+
+const numHorocycles = 6;
+const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#95e1d3', '#f38181', '#aa96da'];
+
+for (let i = 0; i < numHorocycles; i++) {
+  const angle = (i / numHorocycles) * Math.PI * 2;
+  const sizes = [0.1, 0.2, 0.3];
+  sizes.forEach((size, j) => {
+    drawHorocycle(angle, size, colors[i] + (j === 0 ? 'ff' : j === 1 ? '88' : '44'));
+  });
+}
+
+log('Drew nested horocycles at ' + numHorocycles + ' ideal points');`,
+
+      transport: `// Parallel transport along a geodesic
+drawDisk();
+
+const start = C(-0.5, 0);
+const end = C(0.5, 0.3);
+
+// Draw the geodesic
+drawGeodesic(start, end, '#4ecdc4', 2);
+drawPoint(start, '#ff6b6b', 8);
+drawPoint(end, '#ffe66d', 8);
+
+// Draw arrows along path showing parallel transport
+const numSteps = 8;
+for (let i = 0; i <= numSteps; i++) {
+  const t = i / numSteps;
+  // Interpolate along geodesic
+  if (window.HyperbolicProjections) {
+    const P = HyperbolicProjections.PoincareDisk;
+    const pt = P.geodesicLerp(start, end, t);
+    const p = toScreen(pt);
+
+    // Draw transported vector (perpendicular to geodesic)
+    const tangent = C(end.re - start.re, end.im - start.im);
+    const perp = C(-tangent.im, tangent.re);
+    const len = Math.sqrt(perp.re ** 2 + perp.im ** 2);
+    const arrow = C(perp.re / len * 0.1, perp.im / len * 0.1);
+
+    const arrowEnd = C(pt.re + arrow.re, pt.im + arrow.im);
+    const pe = toScreen(arrowEnd);
+
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(pe.x, pe.y);
+    ctx.strokeStyle = '#ff6b6b';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+log('Parallel transport of vector along geodesic');
+log('Red arrows show the transported vector at each point');`,
+
+      midpoints: `// Compare Einstein vs Euclidean midpoint
+drawDisk();
+
+const p1 = C(0.6, 0.3);
+const p2 = C(-0.4, 0.5);
+
+// Euclidean midpoint
+const eucMid = C((p1.re + p2.re) / 2, (p1.im + p2.im) / 2);
+
+// Hyperbolic (Einstein) midpoint
+let hypMid = eucMid;
+if (window.HyperbolicProjections) {
+  hypMid = HyperbolicProjections.PoincareDisk.geodesicLerp(p1, p2, 0.5);
+}
+
+// Draw
+drawGeodesic(p1, p2, '#4ecdc4', 2);
+drawPoint(p1, '#ff6b6b', 10);
+drawPoint(p2, '#ff6b6b', 10);
+drawPoint(eucMid, '#888', 8);  // Euclidean midpoint (gray)
+drawPoint(hypMid, '#ffe66d', 8);  // Hyperbolic midpoint (yellow)
+
+// Labels
+const pe = toScreen(eucMid);
+const ph = toScreen(hypMid);
+ctx.font = '12px sans-serif';
+ctx.fillStyle = '#888';
+ctx.fillText('Euclidean', pe.x + 10, pe.y);
+ctx.fillStyle = '#ffe66d';
+ctx.fillText('Hyperbolic', ph.x + 10, ph.y);
+
+log('Red: endpoints');
+log('Gray: Euclidean midpoint');
+log('Yellow: Hyperbolic (Einstein) midpoint');
+log('Notice the hyperbolic midpoint is closer to the origin!');`,
+
+      klein: `// Klein model - geodesics are straight lines!
+drawDisk();
+
+// In Klein model, geodesics are Euclidean straight lines
+// But angles are distorted
+
+const points = [
+  C(0.4, 0.3),
+  C(-0.5, 0.2),
+  C(0.1, -0.6),
+  C(-0.3, -0.4)
+];
+
+// Draw as Klein model (straight lines)
+ctx.strokeStyle = '#ff6b6b';
+ctx.lineWidth = 2;
+for (let i = 0; i < points.length; i++) {
+  const p1 = toScreen(points[i]);
+  const p2 = toScreen(points[(i + 1) % points.length]);
+  ctx.beginPath();
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.stroke();
+}
+
+// Draw points
+points.forEach(p => drawPoint(p, '#ffe66d', 8));
+
+// Convert to Poincaré and draw those geodesics
+if (window.HyperbolicProjections) {
+  const K = HyperbolicProjections.KleinDisk;
+  const poincarePoints = points.map(k => K.toPoincare(k));
+
+  ctx.globalAlpha = 0.5;
+  for (let i = 0; i < poincarePoints.length; i++) {
+    drawGeodesic(poincarePoints[i], poincarePoints[(i + 1) % poincarePoints.length], '#4ecdc4', 2);
+  }
+  ctx.globalAlpha = 1;
+}
+
+log('Red: Klein model geodesics (straight lines)');
+log('Cyan: Same geodesics in Poincaré model (curved)');
+log('Both represent the same hyperbolic distances!');`
+    };
+
+    function loadExample(name) {
+      document.getElementById('editor').value = examples[name];
+      switchTab('editor');
+      runCode();
+    }
+
+    // Mouse tracking
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const z = fromScreen(x, y);
+      document.getElementById('mouse-coords').textContent =
+        `x: ${z.re.toFixed(3)}, y: ${z.im.toFixed(3)}`;
+    });
+
+    // Keyboard shortcut
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        runCode();
+      }
+    });
+
+    // SVG Export
+    function exportSVG() {
+      log('SVG export not yet implemented', 'info');
+    }
+
+    // Initial run
+    setTimeout(runCode, 100);
+  </script>
+</body>
+</html>

@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>H^n Engine Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0a0a0f;
+      color: #e0e0e8;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      overflow: hidden;
+    }
+
+    #app {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      grid-template-rows: auto 1fr auto;
+      height: 100vh;
+      gap: 1px;
+      background: #1a1a24;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #1a1a24 0%, #12121a 100%);
+      border-bottom: 1px solid #2a2a36;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 500;
+      color: #a0a0d0;
+    }
+
+    h1 span {
+      color: #6060a0;
+      font-weight: 300;
+    }
+
+    #status {
+      font-size: 12px;
+      color: #60a060;
+      padding: 4px 12px;
+      background: rgba(96, 160, 96, 0.1);
+      border-radius: 4px;
+    }
+
+    #canvas-container {
+      position: relative;
+      background: #0d0d14;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #sidebar {
+      background: #12121a;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel {
+      background: #1a1a24;
+      border: 1px solid #2a2a36;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #1e1e2a 0%, #1a1a24 100%);
+      border-bottom: 1px solid #2a2a36;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #8080a0;
+    }
+
+    .panel-content {
+      padding: 16px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+      border-bottom: 1px solid #2a2a36;
+    }
+
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+
+    .stat-label {
+      color: #8080a0;
+    }
+
+    .stat-value {
+      color: #c0c0e0;
+      font-weight: 500;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px 16px;
+      margin-top: 8px;
+      background: linear-gradient(135deg, #3a3a4a 0%, #2a2a3a 100%);
+      border: 1px solid #4a4a5a;
+      border-radius: 6px;
+      color: #c0c0e0;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      background: linear-gradient(135deg, #4a4a5a 0%, #3a3a4a 100%);
+      border-color: #6a6a7a;
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4060a0 0%, #305080 100%);
+      border-color: #5080c0;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #5080c0 0%, #4070a0 100%);
+    }
+
+    footer {
+      grid-column: 1 / -1;
+      padding: 8px 20px;
+      background: #12121a;
+      border-top: 1px solid #2a2a36;
+      font-size: 11px;
+      color: #606080;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    #log {
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 11px;
+      color: #80a080;
+      background: #0a0a10;
+      padding: 8px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    #log .entry {
+      padding: 2px 0;
+      border-bottom: 1px solid #1a1a24;
+    }
+
+    .minimap-container {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #0a0a10;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    #minimap {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>H<sup>n</sup> <span>Engine Test Harness</span></h1>
+      <div id="status">Initializing...</div>
+    </header>
+
+    <div id="canvas-container">
+      <canvas id="main-canvas"></canvas>
+    </div>
+
+    <div id="sidebar">
+      <div class="panel">
+        <div class="panel-header">Engine State</div>
+        <div class="panel-content">
+          <div class="stat-row">
+            <span class="stat-label">Dimension</span>
+            <span class="stat-value" id="stat-dim">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Points</span>
+            <span class="stat-value" id="stat-points">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Selected</span>
+            <span class="stat-value" id="stat-selected">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">FPS</span>
+            <span class="stat-value" id="stat-fps">-</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">Minimap (Poincaré)</div>
+        <div class="panel-content">
+          <div class="minimap-container">
+            <canvas id="minimap"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">Actions</div>
+        <div class="panel-content">
+          <button id="btn-add-random" class="btn-primary">Add Random Point</button>
+          <button id="btn-add-tree">Generate Tree (10 nodes)</button>
+          <button id="btn-center">Center on Selection</button>
+          <button id="btn-clear-selection">Clear Selection</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">Console</div>
+        <div class="panel-content">
+          <div id="log"></div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <span>Umbra H^n Engine v0.1.0</span>
+      <span id="mouse-pos">-</span>
+    </footer>
+  </div>
+
+  <!-- Load ClojureScript compiled engine -->
+  <script src="/js/cljs/hn-core.js"></script>
+
+  <script>
+    // ========================================================================
+    // FALLBACK MOCK ENGINE (if CLJS not yet compiled)
+    // ========================================================================
+
+    if (!window.HnEngine) {
+      console.warn('ClojureScript engine not loaded, using mock implementation');
+
+      window.HnEngine = {
+        _dim: 5,
+        _points: [],
+        _selected: new Set(),
+        _nextId: 0,
+
+        init(dim) {
+          this._dim = dim;
+          this._points = [];
+          console.log(`[Mock] Initialized H^${dim} engine`);
+          return true;
+        },
+
+        createPointset(capacity) {
+          const id = `ps-${this._nextId++}`;
+          console.log(`[Mock] Created pointset ${id} with capacity ${capacity}`);
+          return id;
+        },
+
+        addPoint(psId, name, parentName, meta) {
+          const idx = this._points.length;
+          const parent = parentName ? this._points.findIndex(p => p.name === parentName) : -1;
+
+          // Random position in Poincaré disk for visualization
+          let x = 0, y = 0;
+          if (parent >= 0) {
+            const p = this._points[parent];
+            const angle = Math.random() * 2 * Math.PI;
+            const dist = 0.1 + Math.random() * 0.1;
+            x = p.x + Math.cos(angle) * dist;
+            y = p.y + Math.sin(angle) * dist;
+            // Keep in disk
+            const r = Math.sqrt(x*x + y*y);
+            if (r > 0.95) { x *= 0.95/r; y *= 0.95/r; }
+          }
+
+          this._points.push({
+            name,
+            parent,
+            depth: parent >= 0 ? this._points[parent].depth + 1 : 0,
+            x, y,
+            ...meta
+          });
+
+          return idx;
+        },
+
+        getPointCount(psId) {
+          return this._points.length;
+        },
+
+        projectForRender(psId) {
+          return this._points.map((p, idx) => ({
+            idx,
+            x: 400 + p.x * 300,
+            y: 300 + p.y * 300,
+            lod: 0,
+            dist: Math.sqrt(p.x*p.x + p.y*p.y) * 5,
+            name: p.name,
+            depth: p.depth,
+            flags: this._selected.has(idx) ? 4 : 0
+          }));
+        },
+
+        projectEdges(psId, sampleGeodesics) {
+          return this._points
+            .map((p, idx) => ({ from: p.parent, to: idx }))
+            .filter(e => e.from >= 0)
+            .map(e => {
+              const from = this._points[e.from];
+              const to = this._points[e.to];
+              return {
+                from: e.from,
+                to: e.to,
+                x1: 400 + from.x * 300,
+                y1: 300 + from.y * 300,
+                x2: 400 + to.x * 300,
+                y2: 300 + to.y * 300
+              };
+            });
+        },
+
+        pickAtScreen(psId, sx, sy, threshold) {
+          const projected = this.projectForRender(psId);
+          for (const p of projected) {
+            const dx = p.x - sx;
+            const dy = p.y - sy;
+            if (Math.sqrt(dx*dx + dy*dy) < threshold) {
+              return p.idx;
+            }
+          }
+          return -1;
+        },
+
+        setSelected(psId, idx, selected) {
+          if (selected) this._selected.add(idx);
+          else this._selected.delete(idx);
+        },
+
+        getSelected(psId) {
+          return Array.from(this._selected);
+        },
+
+        panLens(dx, dy) {
+          this._points.forEach(p => {
+            p.x -= dx * 0.001;
+            p.y += dy * 0.001;
+          });
+        },
+
+        zoomLens(delta) {},
+        setLensViewport() {}
+      };
+    }
+
+    // ========================================================================
+    // APPLICATION
+    // ========================================================================
+
+    const Hn = window.HnEngine;
+    let psId = null;
+    let animating = false;
+    let lastFrameTime = 0;
+    let frameCount = 0;
+    let fps = 0;
+
+    function log(msg) {
+      const logEl = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = 'entry';
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logEl.insertBefore(entry, logEl.firstChild);
+      if (logEl.children.length > 50) logEl.lastChild.remove();
+    }
+
+    function updateStats() {
+      document.getElementById('stat-dim').textContent = `H^5`;
+      document.getElementById('stat-points').textContent = Hn.getPointCount(psId);
+      document.getElementById('stat-selected').textContent = Hn.getSelected(psId).length;
+      document.getElementById('stat-fps').textContent = fps.toFixed(1);
+    }
+
+    function init() {
+      // Initialize engine
+      Hn.init(5);
+      document.getElementById('status').textContent = 'Ready';
+      document.getElementById('status').style.color = '#60a060';
+
+      // Create pointset
+      psId = Hn.createPointset(10000);
+      log(`Created pointset: ${psId}`);
+
+      // Add root node
+      Hn.addPoint(psId, 'root', null, { tags: ['root'] });
+      log('Added root node');
+
+      // Setup canvas
+      setupCanvas();
+
+      // Setup controls
+      setupControls();
+
+      // Start render loop
+      requestAnimationFrame(render);
+    }
+
+    function setupCanvas() {
+      const container = document.getElementById('canvas-container');
+      const canvas = document.getElementById('main-canvas');
+      const ctx = canvas.getContext('2d');
+
+      function resize() {
+        canvas.width = container.clientWidth * window.devicePixelRatio;
+        canvas.height = container.clientHeight * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        Hn.setLensViewport('main', container.clientWidth, container.clientHeight, 100, 0, 0);
+      }
+
+      resize();
+      window.addEventListener('resize', resize);
+
+      // Mouse interaction
+      let isDragging = false;
+      let lastX = 0, lastY = 0;
+
+      canvas.addEventListener('mousedown', e => {
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+
+        // Check for point selection
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const idx = Hn.pickAtScreen(psId, x, y, 20);
+        if (idx >= 0) {
+          if (!e.shiftKey) {
+            // Clear existing selection
+            Hn.getSelected(psId).forEach(i => Hn.setSelected(psId, i, false));
+          }
+          Hn.setSelected(psId, idx, true);
+          log(`Selected point ${idx}`);
+        }
+      });
+
+      canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        document.getElementById('mouse-pos').textContent = `${x.toFixed(0)}, ${y.toFixed(0)}`;
+
+        if (isDragging) {
+          const dx = e.clientX - lastX;
+          const dy = e.clientY - lastY;
+          Hn.panLens(dx, dy);
+          lastX = e.clientX;
+          lastY = e.clientY;
+        }
+      });
+
+      canvas.addEventListener('mouseup', () => isDragging = false);
+      canvas.addEventListener('mouseleave', () => isDragging = false);
+
+      canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        Hn.zoomLens(-e.deltaY * 0.01);
+      });
+    }
+
+    function setupControls() {
+      document.getElementById('btn-add-random').addEventListener('click', () => {
+        const points = Hn.projectForRender(psId);
+        const parentIdx = Math.floor(Math.random() * points.length);
+        const parentName = Hn.getPointMeta ? Hn.getPointMeta(psId, parentIdx)?.name : null;
+        const name = `node-${Date.now()}`;
+        Hn.addPoint(psId, name, parentName || 'root', {});
+        log(`Added point: ${name}`);
+      });
+
+      document.getElementById('btn-add-tree').addEventListener('click', () => {
+        const baseName = `tree-${Date.now()}`;
+        Hn.addPoint(psId, baseName, 'root', {});
+        for (let i = 0; i < 9; i++) {
+          const depth = Math.floor(Math.random() * 3);
+          const parentIdx = Math.max(0, Hn.getPointCount(psId) - 1 - Math.floor(Math.random() * (depth + 1)));
+          const parentMeta = Hn.getPointMeta ? Hn.getPointMeta(psId, parentIdx) : null;
+          const parentName = parentMeta?.name || baseName;
+          Hn.addPoint(psId, `${baseName}-${i}`, parentName, {});
+        }
+        log(`Added tree with 10 nodes`);
+      });
+
+      document.getElementById('btn-center').addEventListener('click', () => {
+        log('Centering on selection (not implemented in mock)');
+      });
+
+      document.getElementById('btn-clear-selection').addEventListener('click', () => {
+        Hn.getSelected(psId).forEach(i => Hn.setSelected(psId, i, false));
+        log('Cleared selection');
+      });
+    }
+
+    function render(timestamp) {
+      // FPS calculation
+      frameCount++;
+      if (timestamp - lastFrameTime >= 1000) {
+        fps = frameCount;
+        frameCount = 0;
+        lastFrameTime = timestamp;
+      }
+
+      const canvas = document.getElementById('main-canvas');
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width / window.devicePixelRatio;
+      const height = canvas.height / window.devicePixelRatio;
+
+      // Clear
+      ctx.fillStyle = '#0d0d14';
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw grid
+      ctx.strokeStyle = '#1a1a24';
+      ctx.lineWidth = 1;
+      const gridSize = 50;
+      for (let x = 0; x < width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+
+      // Draw unit circle (Poincaré disk boundary)
+      ctx.strokeStyle = '#2a2a36';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(width/2, height/2, 300, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Get projection data
+      const edges = Hn.projectEdges(psId, false);
+      const points = Hn.projectForRender(psId);
+
+      // Draw edges
+      ctx.strokeStyle = '#3a3a4a';
+      ctx.lineWidth = 1;
+      edges.forEach(e => {
+        ctx.beginPath();
+        ctx.moveTo(e.x1, e.y1);
+        ctx.lineTo(e.x2, e.y2);
+        ctx.stroke();
+      });
+
+      // Draw points
+      points.forEach(p => {
+        const isSelected = (p.flags & 4) !== 0;
+        const radius = isSelected ? 8 : 5 - p.lod;
+
+        // Glow for selected
+        if (isSelected) {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, radius + 4, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(96, 160, 255, 0.3)';
+          ctx.fill();
+        }
+
+        // Node
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+
+        // Color by depth
+        const hue = (p.depth * 60) % 360;
+        ctx.fillStyle = isSelected ? '#60a0ff' : `hsl(${hue}, 60%, 50%)`;
+        ctx.fill();
+
+        ctx.strokeStyle = isSelected ? '#80c0ff' : '#4a4a5a';
+        ctx.lineWidth = isSelected ? 2 : 1;
+        ctx.stroke();
+      });
+
+      // Update stats
+      updateStats();
+
+      requestAnimationFrame(render);
+    }
+
+    // Start when DOM ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>

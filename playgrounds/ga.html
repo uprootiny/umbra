@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geometric Algebra Sandbox</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'SF Mono', 'Consolas', monospace;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 220px 1fr 280px;
+      grid-template-rows: auto 1fr;
+      height: 100vh;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      background: #15151f;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      border-bottom: 1px solid #333;
+    }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 500;
+      color: #4e8;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-left: auto;
+    }
+
+    button {
+      background: #252535;
+      border: 1px solid #444;
+      color: #aaa;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+
+    button:hover {
+      background: #353545;
+      color: #fff;
+      border-color: #666;
+    }
+
+    button.active {
+      background: #305040;
+      border-color: #4e8;
+      color: #4e8;
+    }
+
+    /* Object Palette */
+    .palette {
+      background: #12121c;
+      border-right: 1px solid #333;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    .section-title {
+      font-size: 11px;
+      color: #666;
+      text-transform: uppercase;
+      margin: 15px 0 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .section-title:first-child {
+      margin-top: 0;
+    }
+
+    .object-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 4px;
+      background: #1a1a28;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #aaa;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s;
+    }
+
+    .object-btn:hover {
+      background: #252535;
+      color: #fff;
+      border-color: #555;
+    }
+
+    .object-btn.active {
+      background: #253035;
+      border-color: #4e8;
+      color: #4e8;
+    }
+
+    .object-icon {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .object-list {
+      margin-top: 15px;
+    }
+
+    .object-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .object-item:hover {
+      background: #252535;
+    }
+
+    .object-item.selected {
+      background: #253035;
+    }
+
+    .object-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    /* Canvas */
+    .canvas-container {
+      position: relative;
+      background: #0f0f18;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .canvas-overlay {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(20, 20, 35, 0.9);
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 10px;
+      color: #888;
+    }
+
+    .canvas-overlay kbd {
+      background: #333;
+      padding: 2px 5px;
+      border-radius: 2px;
+      color: #aaa;
+    }
+
+    /* Algebra Panel */
+    .algebra-panel {
+      background: #12121c;
+      border-left: 1px solid #333;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    .algebra-item {
+      margin-bottom: 12px;
+      padding: 10px;
+      background: #1a1a28;
+      border-radius: 4px;
+      border-left: 3px solid #4e8;
+    }
+
+    .algebra-label {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+
+    .algebra-value {
+      font-family: 'SF Mono', monospace;
+      font-size: 12px;
+      color: #ccc;
+      word-break: break-all;
+    }
+
+    .algebra-value .basis {
+      color: #4e8;
+    }
+
+    .algebra-value .scalar {
+      color: #f8a;
+    }
+
+    /* Versor Builder */
+    .versor-builder {
+      margin-top: 15px;
+      padding: 10px;
+      background: #1a1a28;
+      border-radius: 4px;
+    }
+
+    .versor-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      align-items: center;
+    }
+
+    .versor-label {
+      font-size: 11px;
+      color: #888;
+      width: 60px;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      accent-color: #4e8;
+    }
+
+    input[type="number"] {
+      width: 60px;
+      background: #0f0f18;
+      border: 1px solid #333;
+      color: #ccc;
+      padding: 4px 6px;
+      border-radius: 3px;
+      font-family: inherit;
+      font-size: 11px;
+    }
+
+    /* Operation result */
+    .operation-result {
+      margin-top: 15px;
+      padding: 10px;
+      background: #1a2a1a;
+      border-radius: 4px;
+      border: 1px solid #253525;
+    }
+
+    .op-title {
+      font-size: 11px;
+      color: #4e8;
+      margin-bottom: 8px;
+    }
+
+    .op-formula {
+      font-family: 'SF Mono', monospace;
+      font-size: 12px;
+      color: #aaa;
+      margin-bottom: 8px;
+    }
+
+    /* Meet/Join buttons */
+    .op-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .op-btn {
+      flex: 1;
+      padding: 8px;
+      font-size: 11px;
+    }
+
+    .op-btn.meet { border-color: #f66; }
+    .op-btn.meet:hover { background: #352525; }
+    .op-btn.join { border-color: #66f; }
+    .op-btn.join:hover { background: #252535; }
+
+    /* View toggles */
+    .view-toggles {
+      display: flex;
+      gap: 5px;
+      margin-top: 15px;
+    }
+
+    .view-toggle {
+      flex: 1;
+      padding: 6px;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Geometric Algebra Sandbox</h1>
+      <span style="color: #666; font-size: 12px;">Conformal GA (CGA) in 2D/3D</span>
+      <div class="controls">
+        <button id="btn-2d" class="active">2D</button>
+        <button id="btn-3d">3D</button>
+        <button id="btn-clear">Clear All</button>
+      </div>
+    </header>
+
+    <div class="palette">
+      <div class="section-title">Create Objects</div>
+      <button class="object-btn active" data-type="point">
+        <span class="object-icon">●</span>
+        <span>Point</span>
+      </button>
+      <button class="object-btn" data-type="line">
+        <span class="object-icon">─</span>
+        <span>Line</span>
+      </button>
+      <button class="object-btn" data-type="circle">
+        <span class="object-icon">○</span>
+        <span>Circle</span>
+      </button>
+      <button class="object-btn" data-type="plane">
+        <span class="object-icon">▢</span>
+        <span>Plane</span>
+      </button>
+
+      <div class="section-title">Transformations</div>
+      <button class="object-btn" data-type="rotate">
+        <span class="object-icon">↻</span>
+        <span>Rotation</span>
+      </button>
+      <button class="object-btn" data-type="translate">
+        <span class="object-icon">→</span>
+        <span>Translation</span>
+      </button>
+      <button class="object-btn" data-type="dilate">
+        <span class="object-icon">⊕</span>
+        <span>Dilation</span>
+      </button>
+      <button class="object-btn" data-type="reflect">
+        <span class="object-icon">⇌</span>
+        <span>Reflection</span>
+      </button>
+
+      <div class="section-title">Scene Objects</div>
+      <div class="object-list" id="object-list"></div>
+    </div>
+
+    <div class="canvas-container">
+      <canvas id="canvas"></canvas>
+      <div class="canvas-overlay">
+        <kbd>Click</kbd> create &nbsp;
+        <kbd>Drag</kbd> move &nbsp;
+        <kbd>Shift+Click</kbd> select multiple
+      </div>
+    </div>
+
+    <div class="algebra-panel">
+      <div class="section-title">Selected Objects</div>
+      <div id="algebra-display">
+        <div style="color: #666; font-size: 12px;">Select objects to see their algebraic representation</div>
+      </div>
+
+      <div class="section-title">Operations</div>
+      <div class="op-buttons">
+        <button class="op-btn meet" id="btn-meet">Meet (∧)</button>
+        <button class="op-btn join" id="btn-join">Join (∨)</button>
+      </div>
+
+      <div class="operation-result" id="operation-result" style="display: none;">
+        <div class="op-title">Result</div>
+        <div class="op-formula" id="op-formula"></div>
+        <div class="algebra-value" id="op-value"></div>
+      </div>
+
+      <div class="section-title">Versor (Sandwich Product)</div>
+      <div class="versor-builder">
+        <div class="versor-row">
+          <span class="versor-label">Angle</span>
+          <input type="range" id="versor-angle" min="-180" max="180" value="0">
+          <input type="number" id="versor-angle-val" value="0">°
+        </div>
+        <div class="versor-row">
+          <span class="versor-label">Trans X</span>
+          <input type="range" id="versor-tx" min="-200" max="200" value="0">
+          <input type="number" id="versor-tx-val" value="0">
+        </div>
+        <div class="versor-row">
+          <span class="versor-label">Trans Y</span>
+          <input type="range" id="versor-ty" min="-200" max="200" value="0">
+          <input type="number" id="versor-ty-val" value="0">
+        </div>
+        <div class="versor-row">
+          <span class="versor-label">Scale</span>
+          <input type="range" id="versor-scale" min="0.1" max="3" step="0.1" value="1">
+          <input type="number" id="versor-scale-val" value="1" step="0.1">
+        </div>
+        <button id="btn-apply-versor" style="width: 100%; margin-top: 8px;">
+          Apply X' = RXR̃
+        </button>
+      </div>
+
+      <div class="section-title">View</div>
+      <div class="view-toggles">
+        <button class="view-toggle active" id="btn-view-geo">Geometry</button>
+        <button class="view-toggle" id="btn-view-alg">Algebra</button>
+        <button class="view-toggle" id="btn-view-both">Both</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========================================
+    // CGA Implementation (2D Conformal)
+    // ========================================
+
+    // Basis: e1, e2, e+, e-, e12, e1+, e1-, e2+, e2-, e+-, e12+, e12-, e1+-, e2+-, e12+-
+    // For 2D CGA we use: e1, e2, eo (origin), ei (infinity)
+    // eo = (e- - e+)/2, ei = e- + e+
+
+    const COLORS = [
+      '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7',
+      '#a29bfe', '#fd79a8', '#00b894', '#e17055', '#74b9ff'
+    ];
+    let colorIdx = 0;
+
+    // Simplified CGA multivector representation
+    // We'll use a sparse representation for key blades
+    class Multivector {
+      constructor(components = {}) {
+        this.c = components;  // { basisLabel: coefficient }
+      }
+
+      static scalar(s) {
+        return new Multivector({ '1': s });
+      }
+
+      static e1(s = 1) { return new Multivector({ 'e1': s }); }
+      static e2(s = 1) { return new Multivector({ 'e2': s }); }
+      static eo(s = 1) { return new Multivector({ 'eo': s }); }
+      static ei(s = 1) { return new Multivector({ 'ei': s }); }
+
+      // CGA point: P = x*e1 + y*e2 + 0.5*(x^2+y^2)*ei + eo
+      static point(x, y) {
+        const r2 = x * x + y * y;
+        return new Multivector({
+          'e1': x,
+          'e2': y,
+          'ei': 0.5 * r2,
+          'eo': 1
+        });
+      }
+
+      // Extract Euclidean coordinates from CGA point
+      toEuclidean() {
+        const eo = this.c['eo'] || 0;
+        if (Math.abs(eo) < 1e-10) return null;
+        return {
+          x: (this.c['e1'] || 0) / eo,
+          y: (this.c['e2'] || 0) / eo
+        };
+      }
+
+      add(other) {
+        const result = { ...this.c };
+        for (const [k, v] of Object.entries(other.c)) {
+          result[k] = (result[k] || 0) + v;
+          if (Math.abs(result[k]) < 1e-10) delete result[k];
+        }
+        return new Multivector(result);
+      }
+
+      scale(s) {
+        const result = {};
+        for (const [k, v] of Object.entries(this.c)) {
+          const scaled = v * s;
+          if (Math.abs(scaled) > 1e-10) result[k] = scaled;
+        }
+        return new Multivector(result);
+      }
+
+      // Geometric product (simplified for key cases)
+      gp(other) {
+        // This is a simplified implementation
+        // Full CGA geometric product is more complex
+        const result = {};
+
+        for (const [k1, v1] of Object.entries(this.c)) {
+          for (const [k2, v2] of Object.entries(other.c)) {
+            const [blade, sign] = gpBasis(k1, k2);
+            const coef = v1 * v2 * sign;
+            if (Math.abs(coef) > 1e-10) {
+              result[blade] = (result[blade] || 0) + coef;
+            }
+          }
+        }
+
+        return new Multivector(result);
+      }
+
+      // Outer product (wedge)
+      wedge(other) {
+        const result = {};
+
+        for (const [k1, v1] of Object.entries(this.c)) {
+          for (const [k2, v2] of Object.entries(other.c)) {
+            const [blade, sign] = wedgeBasis(k1, k2);
+            if (blade) {
+              const coef = v1 * v2 * sign;
+              if (Math.abs(coef) > 1e-10) {
+                result[blade] = (result[blade] || 0) + coef;
+              }
+            }
+          }
+        }
+
+        return new Multivector(result);
+      }
+
+      // Inner product (for meet operation)
+      inner(other) {
+        const result = {};
+
+        for (const [k1, v1] of Object.entries(this.c)) {
+          for (const [k2, v2] of Object.entries(other.c)) {
+            const [blade, sign] = innerBasis(k1, k2);
+            if (blade) {
+              const coef = v1 * v2 * sign;
+              if (Math.abs(coef) > 1e-10) {
+                result[blade] = (result[blade] || 0) + coef;
+              }
+            }
+          }
+        }
+
+        return new Multivector(result);
+      }
+
+      // Reverse (for sandwich product)
+      reverse() {
+        const result = {};
+        for (const [k, v] of Object.entries(this.c)) {
+          const grade = bladeGrade(k);
+          // Reverse sign: (-1)^(grade*(grade-1)/2)
+          const sign = Math.pow(-1, (grade * (grade - 1)) / 2);
+          result[k] = v * sign;
+        }
+        return new Multivector(result);
+      }
+
+      // Dual
+      dual() {
+        // Simplified dual for 2D CGA
+        const I = 'e12oI';  // Pseudoscalar
+        return this.inner(new Multivector({ [I]: 1 }));
+      }
+
+      toString() {
+        const terms = [];
+        const order = ['1', 'e1', 'e2', 'eo', 'ei', 'e12', 'e1o', 'e2o', 'e1i', 'e2i', 'eoi', 'e12o', 'e12i', 'e1oi', 'e2oi', 'e12oi'];
+
+        for (const k of order) {
+          if (this.c[k] && Math.abs(this.c[k]) > 1e-10) {
+            const coef = this.c[k].toFixed(2);
+            if (k === '1') {
+              terms.push(`<span class="scalar">${coef}</span>`);
+            } else {
+              terms.push(`<span class="scalar">${coef}</span><span class="basis">${k}</span>`);
+            }
+          }
+        }
+
+        // Any remaining
+        for (const [k, v] of Object.entries(this.c)) {
+          if (!order.includes(k) && Math.abs(v) > 1e-10) {
+            terms.push(`<span class="scalar">${v.toFixed(2)}</span><span class="basis">${k}</span>`);
+          }
+        }
+
+        return terms.length > 0 ? terms.join(' + ') : '0';
+      }
+    }
+
+    // Basis multiplication tables (simplified)
+    function gpBasis(a, b) {
+      if (a === '1') return [b, 1];
+      if (b === '1') return [a, 1];
+
+      // e1*e1 = 1, e2*e2 = 1, eo*ei + ei*eo = -1
+      if (a === 'e1' && b === 'e1') return ['1', 1];
+      if (a === 'e2' && b === 'e2') return ['1', 1];
+      if (a === 'eo' && b === 'ei') return ['1', -0.5];
+      if (a === 'ei' && b === 'eo') return ['1', -0.5];
+      if (a === 'eo' && b === 'eo') return ['1', 0];
+      if (a === 'ei' && b === 'ei') return ['1', 0];
+
+      // Wedge products
+      if (a === 'e1' && b === 'e2') return ['e12', 1];
+      if (a === 'e2' && b === 'e1') return ['e12', -1];
+      if (a === 'e1' && b === 'eo') return ['e1o', 1];
+      if (a === 'e1' && b === 'ei') return ['e1i', 1];
+      if (a === 'e2' && b === 'eo') return ['e2o', 1];
+      if (a === 'e2' && b === 'ei') return ['e2i', 1];
+      if (a === 'eo' && b === 'ei') return ['eoi', 1];
+
+      return [a + b, 1];
+    }
+
+    function wedgeBasis(a, b) {
+      if (a === '1') return [b, 1];
+      if (b === '1') return [a, 1];
+
+      // Check if bases share any vectors
+      const aVecs = a.replace(/[0-9]/g, '').split('').filter(c => c !== 'e');
+      const bVecs = b.replace(/[0-9]/g, '').split('').filter(c => c !== 'e');
+
+      for (const v of aVecs) {
+        if (bVecs.includes(v)) return [null, 0];  // Wedge is 0
+      }
+
+      return [a + b.replace('e', ''), 1];
+    }
+
+    function innerBasis(a, b) {
+      // Simplified inner product
+      if (a === b) {
+        if (a === 'e1' || a === 'e2') return ['1', 1];
+        if (a === 'eo' || a === 'ei') return ['1', 0];
+      }
+      return [null, 0];
+    }
+
+    function bladeGrade(basis) {
+      if (basis === '1') return 0;
+      return (basis.match(/[12oi]/g) || []).length;
+    }
+
+    // ========================================
+    // Scene Objects
+    // ========================================
+
+    const state = {
+      objects: [],
+      selected: [],
+      mode: 'point',
+      is3D: false,
+      viewMode: 'geo',  // 'geo', 'alg', 'both'
+      dragging: null,
+      versor: { angle: 0, tx: 0, ty: 0, scale: 1 }
+    };
+
+    let nextId = 1;
+
+    function createObject(type, params) {
+      const id = nextId++;
+      const color = COLORS[colorIdx++ % COLORS.length];
+
+      let obj = { id, type, color, ...params };
+
+      switch (type) {
+        case 'point':
+          obj.mv = Multivector.point(params.x, params.y);
+          obj.label = `P${id}`;
+          break;
+        case 'line':
+          // Line through two points: L = P1 ∧ P2 ∧ ei
+          const p1 = Multivector.point(params.x1, params.y1);
+          const p2 = Multivector.point(params.x2, params.y2);
+          obj.mv = p1.wedge(p2).wedge(Multivector.ei());
+          obj.label = `L${id}`;
+          break;
+        case 'circle':
+          // Circle through center with radius
+          // C = P - 0.5*r^2*ei where P is center point
+          const center = Multivector.point(params.cx, params.cy);
+          obj.mv = center.add(Multivector.ei(-0.5 * params.r * params.r));
+          obj.label = `C${id}`;
+          break;
+        case 'plane':
+          // Plane with normal (nx, ny) and distance d
+          obj.mv = new Multivector({
+            'e1': params.nx,
+            'e2': params.ny,
+            'ei': params.d
+          });
+          obj.label = `Π${id}`;
+          break;
+      }
+
+      state.objects.push(obj);
+      return obj;
+    }
+
+    function removeObject(id) {
+      state.objects = state.objects.filter(o => o.id !== id);
+      state.selected = state.selected.filter(s => s !== id);
+    }
+
+    // ========================================
+    // Canvas Rendering
+    // ========================================
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      render();
+    }
+
+    function worldToScreen(x, y) {
+      return {
+        x: canvas.width / 2 + x,
+        y: canvas.height / 2 - y
+      };
+    }
+
+    function screenToWorld(sx, sy) {
+      return {
+        x: sx - canvas.width / 2,
+        y: canvas.height / 2 - sy
+      };
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw grid
+      ctx.strokeStyle = '#1a1a28';
+      ctx.lineWidth = 1;
+      const gridSize = 50;
+
+      for (let x = canvas.width / 2 % gridSize; x < canvas.width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = canvas.height / 2 % gridSize; y < canvas.height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // Draw axes
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, canvas.height / 2);
+      ctx.lineTo(canvas.width, canvas.height / 2);
+      ctx.moveTo(canvas.width / 2, 0);
+      ctx.lineTo(canvas.width / 2, canvas.height);
+      ctx.stroke();
+
+      // Draw objects
+      for (const obj of state.objects) {
+        const isSelected = state.selected.includes(obj.id);
+        drawObject(obj, isSelected);
+      }
+
+      // Draw transformed preview if versor is non-identity
+      if (state.selected.length > 0 && hasNonIdentityVersor()) {
+        ctx.globalAlpha = 0.4;
+        for (const id of state.selected) {
+          const obj = state.objects.find(o => o.id === id);
+          if (obj) {
+            const transformed = applyVersor(obj);
+            drawObject({ ...obj, ...transformed }, false, true);
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      updateObjectList();
+      updateAlgebraDisplay();
+    }
+
+    function drawObject(obj, isSelected, isPreview = false) {
+      const strokeColor = isPreview ? obj.color + '88' : obj.color;
+      const fillColor = isPreview ? obj.color + '44' : obj.color;
+
+      ctx.strokeStyle = strokeColor;
+      ctx.fillStyle = fillColor;
+      ctx.lineWidth = isSelected ? 3 : 2;
+
+      switch (obj.type) {
+        case 'point': {
+          const { x, y } = worldToScreen(obj.x, obj.y);
+          ctx.beginPath();
+          ctx.arc(x, y, isSelected ? 8 : 6, 0, Math.PI * 2);
+          ctx.fill();
+          if (isSelected) {
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
+          }
+
+          // Label
+          ctx.fillStyle = '#fff';
+          ctx.font = '11px SF Mono';
+          ctx.textAlign = 'center';
+          ctx.fillText(obj.label, x, y - 12);
+          break;
+        }
+
+        case 'line': {
+          // Draw line extending to canvas edges
+          const dx = obj.x2 - obj.x1;
+          const dy = obj.y2 - obj.y1;
+          const len = Math.sqrt(dx * dx + dy * dy);
+          if (len < 0.01) break;
+
+          const nx = dx / len;
+          const ny = dy / len;
+
+          const p1 = worldToScreen(obj.x1 - nx * 2000, obj.y1 - ny * 2000);
+          const p2 = worldToScreen(obj.x1 + nx * 2000, obj.y1 + ny * 2000);
+
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+
+          // Label at midpoint
+          const mid = worldToScreen((obj.x1 + obj.x2) / 2, (obj.y1 + obj.y2) / 2);
+          ctx.fillStyle = '#fff';
+          ctx.font = '11px SF Mono';
+          ctx.fillText(obj.label, mid.x + 10, mid.y - 10);
+          break;
+        }
+
+        case 'circle': {
+          const center = worldToScreen(obj.cx, obj.cy);
+          ctx.beginPath();
+          ctx.arc(center.x, center.y, obj.r, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Center dot
+          ctx.beginPath();
+          ctx.arc(center.x, center.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Label
+          ctx.fillStyle = '#fff';
+          ctx.font = '11px SF Mono';
+          ctx.fillText(obj.label, center.x + obj.r + 5, center.y);
+          break;
+        }
+
+        case 'plane': {
+          // Draw as infinite line (plane in 2D)
+          const nx = obj.nx;
+          const ny = obj.ny;
+
+          // Point on plane closest to origin
+          const px = nx * obj.d;
+          const py = ny * obj.d;
+
+          // Perpendicular direction
+          const tx = -ny;
+          const ty = nx;
+
+          const p1 = worldToScreen(px - tx * 2000, py - ty * 2000);
+          const p2 = worldToScreen(px + tx * 2000, py + ty * 2000);
+
+          ctx.setLineDash([10, 5]);
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Normal arrow
+          const origin = worldToScreen(px, py);
+          const arrowEnd = worldToScreen(px + nx * 30, py + ny * 30);
+          ctx.beginPath();
+          ctx.moveTo(origin.x, origin.y);
+          ctx.lineTo(arrowEnd.x, arrowEnd.y);
+          ctx.stroke();
+
+          // Label
+          ctx.fillStyle = '#fff';
+          ctx.font = '11px SF Mono';
+          ctx.fillText(obj.label, origin.x + 10, origin.y - 10);
+          break;
+        }
+      }
+    }
+
+    // ========================================
+    // Operations
+    // ========================================
+
+    function computeMeet() {
+      if (state.selected.length !== 2) return null;
+
+      const obj1 = state.objects.find(o => o.id === state.selected[0]);
+      const obj2 = state.objects.find(o => o.id === state.selected[1]);
+      if (!obj1 || !obj2) return null;
+
+      // Meet is the dual of the join of duals
+      // For simplicity, we compute intersection geometrically
+      if (obj1.type === 'line' && obj2.type === 'line') {
+        // Line-line intersection
+        const d1x = obj1.x2 - obj1.x1;
+        const d1y = obj1.y2 - obj1.y1;
+        const d2x = obj2.x2 - obj2.x1;
+        const d2y = obj2.y2 - obj2.y1;
+
+        const cross = d1x * d2y - d1y * d2x;
+        if (Math.abs(cross) < 1e-10) return null;  // Parallel
+
+        const t = ((obj2.x1 - obj1.x1) * d2y - (obj2.y1 - obj1.y1) * d2x) / cross;
+        const x = obj1.x1 + t * d1x;
+        const y = obj1.y1 + t * d1y;
+
+        return { type: 'point', x, y, mv: Multivector.point(x, y) };
+      }
+
+      if ((obj1.type === 'line' && obj2.type === 'circle') ||
+          (obj1.type === 'circle' && obj2.type === 'line')) {
+        // Line-circle intersection
+        const line = obj1.type === 'line' ? obj1 : obj2;
+        const circle = obj1.type === 'circle' ? obj1 : obj2;
+
+        // ... (simplified, would need full implementation)
+        return null;
+      }
+
+      return null;
+    }
+
+    function computeJoin() {
+      if (state.selected.length !== 2) return null;
+
+      const obj1 = state.objects.find(o => o.id === state.selected[0]);
+      const obj2 = state.objects.find(o => o.id === state.selected[1]);
+      if (!obj1 || !obj2) return null;
+
+      // Join of two points is a line
+      if (obj1.type === 'point' && obj2.type === 'point') {
+        return {
+          type: 'line',
+          x1: obj1.x, y1: obj1.y,
+          x2: obj2.x, y2: obj2.y,
+          mv: obj1.mv.wedge(obj2.mv).wedge(Multivector.ei())
+        };
+      }
+
+      return null;
+    }
+
+    // ========================================
+    // Versors
+    // ========================================
+
+    function hasNonIdentityVersor() {
+      const v = state.versor;
+      return Math.abs(v.angle) > 0.1 ||
+             Math.abs(v.tx) > 0.1 ||
+             Math.abs(v.ty) > 0.1 ||
+             Math.abs(v.scale - 1) > 0.01;
+    }
+
+    function applyVersor(obj) {
+      const v = state.versor;
+      const angle = v.angle * Math.PI / 180;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+
+      // Get object center
+      let cx, cy;
+      switch (obj.type) {
+        case 'point': cx = obj.x; cy = obj.y; break;
+        case 'line': cx = (obj.x1 + obj.x2) / 2; cy = (obj.y1 + obj.y2) / 2; break;
+        case 'circle': cx = obj.cx; cy = obj.cy; break;
+        case 'plane': cx = obj.nx * obj.d; cy = obj.ny * obj.d; break;
+      }
+
+      // Apply transformations
+      // 1. Scale from origin
+      cx *= v.scale;
+      cy *= v.scale;
+
+      // 2. Rotate around origin
+      const rx = cx * cos - cy * sin;
+      const ry = cx * sin + cy * cos;
+      cx = rx;
+      cy = ry;
+
+      // 3. Translate
+      cx += v.tx;
+      cy += v.ty;
+
+      // Return transformed parameters
+      switch (obj.type) {
+        case 'point':
+          return { x: cx, y: cy };
+        case 'line': {
+          let dx = obj.x2 - obj.x1;
+          let dy = obj.y2 - obj.y1;
+          dx *= v.scale;
+          dy *= v.scale;
+          const rdx = dx * cos - dy * sin;
+          const rdy = dx * sin + dy * cos;
+          return {
+            x1: cx - rdx / 2, y1: cy - rdy / 2,
+            x2: cx + rdx / 2, y2: cy + rdy / 2
+          };
+        }
+        case 'circle':
+          return { cx, cy, r: obj.r * v.scale };
+        case 'plane': {
+          const rnx = obj.nx * cos - obj.ny * sin;
+          const rny = obj.nx * sin + obj.ny * cos;
+          return { nx: rnx, ny: rny, d: (cx * rnx + cy * rny) };
+        }
+      }
+    }
+
+    // ========================================
+    // UI Updates
+    // ========================================
+
+    function updateObjectList() {
+      const list = document.getElementById('object-list');
+      list.innerHTML = state.objects.map(obj => `
+        <div class="object-item ${state.selected.includes(obj.id) ? 'selected' : ''}" data-id="${obj.id}">
+          <div class="object-dot" style="background: ${obj.color}"></div>
+          <span>${obj.label} (${obj.type})</span>
+        </div>
+      `).join('');
+
+      list.querySelectorAll('.object-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          const id = parseInt(item.dataset.id);
+          if (e.shiftKey) {
+            toggleSelection(id);
+          } else {
+            state.selected = [id];
+          }
+          render();
+        });
+      });
+    }
+
+    function updateAlgebraDisplay() {
+      const display = document.getElementById('algebra-display');
+
+      if (state.selected.length === 0) {
+        display.innerHTML = '<div style="color: #666; font-size: 12px;">Select objects to see their algebraic representation</div>';
+        return;
+      }
+
+      display.innerHTML = state.selected.map(id => {
+        const obj = state.objects.find(o => o.id === id);
+        if (!obj) return '';
+
+        return `
+          <div class="algebra-item">
+            <div class="algebra-label">${obj.label} (${obj.type})</div>
+            <div class="algebra-value">${obj.mv.toString()}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleSelection(id) {
+      const idx = state.selected.indexOf(id);
+      if (idx >= 0) {
+        state.selected.splice(idx, 1);
+      } else {
+        state.selected.push(id);
+      }
+    }
+
+    // ========================================
+    // Event Handlers
+    // ========================================
+
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      const { x, y } = screenToWorld(sx, sy);
+
+      // Check if clicking on existing object
+      const clicked = findObjectAt(x, y);
+
+      if (clicked) {
+        if (e.shiftKey) {
+          toggleSelection(clicked.id);
+        } else {
+          state.selected = [clicked.id];
+          state.dragging = clicked;
+        }
+      } else {
+        // Create new object
+        switch (state.mode) {
+          case 'point':
+            createObject('point', { x, y });
+            break;
+          case 'line':
+            createObject('line', { x1: x - 50, y1: y, x2: x + 50, y2: y });
+            break;
+          case 'circle':
+            createObject('circle', { cx: x, cy: y, r: 50 });
+            break;
+          case 'plane':
+            createObject('plane', { nx: 0, ny: 1, d: y });
+            break;
+        }
+        state.selected = [];
+      }
+
+      render();
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!state.dragging) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      const { x, y } = screenToWorld(sx, sy);
+
+      const obj = state.dragging;
+      switch (obj.type) {
+        case 'point':
+          obj.x = x;
+          obj.y = y;
+          obj.mv = Multivector.point(x, y);
+          break;
+        case 'line': {
+          const dx = obj.x2 - obj.x1;
+          const dy = obj.y2 - obj.y1;
+          obj.x1 = x - dx / 2;
+          obj.y1 = y - dy / 2;
+          obj.x2 = x + dx / 2;
+          obj.y2 = y + dy / 2;
+          break;
+        }
+        case 'circle':
+          obj.cx = x;
+          obj.cy = y;
+          break;
+        case 'plane':
+          obj.d = x * obj.nx + y * obj.ny;
+          break;
+      }
+
+      render();
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      state.dragging = null;
+    });
+
+    function findObjectAt(x, y) {
+      const threshold = 15;
+
+      for (const obj of state.objects) {
+        switch (obj.type) {
+          case 'point':
+            if (Math.hypot(obj.x - x, obj.y - y) < threshold) return obj;
+            break;
+          case 'line': {
+            // Distance to line segment
+            const dx = obj.x2 - obj.x1;
+            const dy = obj.y2 - obj.y1;
+            const len = Math.hypot(dx, dy);
+            if (len < 0.01) continue;
+            const t = Math.max(0, Math.min(1, ((x - obj.x1) * dx + (y - obj.y1) * dy) / (len * len)));
+            const px = obj.x1 + t * dx;
+            const py = obj.y1 + t * dy;
+            if (Math.hypot(px - x, py - y) < threshold) return obj;
+            break;
+          }
+          case 'circle':
+            if (Math.abs(Math.hypot(obj.cx - x, obj.cy - y) - obj.r) < threshold) return obj;
+            break;
+        }
+      }
+
+      return null;
+    }
+
+    // Object type buttons
+    document.querySelectorAll('.object-btn[data-type]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.dataset.type;
+        if (['point', 'line', 'circle', 'plane'].includes(type)) {
+          state.mode = type;
+          document.querySelectorAll('.object-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+      });
+    });
+
+    // Meet/Join buttons
+    document.getElementById('btn-meet').addEventListener('click', () => {
+      const result = computeMeet();
+      if (result) {
+        const obj = createObject(result.type, result);
+        document.getElementById('operation-result').style.display = 'block';
+        document.getElementById('op-formula').textContent = `${state.objects.find(o => o.id === state.selected[0])?.label || 'A'} ∧ ${state.objects.find(o => o.id === state.selected[1])?.label || 'B'}`;
+        document.getElementById('op-value').innerHTML = obj.mv.toString();
+      } else {
+        document.getElementById('operation-result').style.display = 'block';
+        document.getElementById('op-formula').textContent = 'Meet';
+        document.getElementById('op-value').textContent = 'No intersection found';
+      }
+      render();
+    });
+
+    document.getElementById('btn-join').addEventListener('click', () => {
+      const result = computeJoin();
+      if (result) {
+        const obj = createObject(result.type, result);
+        document.getElementById('operation-result').style.display = 'block';
+        document.getElementById('op-formula').textContent = `${state.objects.find(o => o.id === state.selected[0])?.label || 'A'} ∨ ${state.objects.find(o => o.id === state.selected[1])?.label || 'B'}`;
+        document.getElementById('op-value').innerHTML = obj.mv.toString();
+      }
+      render();
+    });
+
+    // Versor controls
+    const versorInputs = ['angle', 'tx', 'ty', 'scale'];
+    versorInputs.forEach(name => {
+      const slider = document.getElementById(`versor-${name}`);
+      const input = document.getElementById(`versor-${name}-val`);
+
+      slider.addEventListener('input', () => {
+        const val = parseFloat(slider.value);
+        state.versor[name] = val;
+        input.value = val;
+        render();
+      });
+
+      input.addEventListener('change', () => {
+        const val = parseFloat(input.value);
+        state.versor[name] = val;
+        slider.value = val;
+        render();
+      });
+    });
+
+    document.getElementById('btn-apply-versor').addEventListener('click', () => {
+      for (const id of state.selected) {
+        const obj = state.objects.find(o => o.id === id);
+        if (obj) {
+          const transformed = applyVersor(obj);
+          Object.assign(obj, transformed);
+          if (obj.type === 'point') {
+            obj.mv = Multivector.point(obj.x, obj.y);
+          }
+        }
+      }
+      // Reset versor
+      state.versor = { angle: 0, tx: 0, ty: 0, scale: 1 };
+      versorInputs.forEach(name => {
+        document.getElementById(`versor-${name}`).value = name === 'scale' ? 1 : 0;
+        document.getElementById(`versor-${name}-val`).value = name === 'scale' ? 1 : 0;
+      });
+      render();
+    });
+
+    // View toggles
+    ['geo', 'alg', 'both'].forEach(mode => {
+      document.getElementById(`btn-view-${mode}`).addEventListener('click', function() {
+        state.viewMode = mode;
+        document.querySelectorAll('.view-toggle').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        render();
+      });
+    });
+
+    // Clear
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      state.objects = [];
+      state.selected = [];
+      colorIdx = 0;
+      nextId = 1;
+      render();
+    });
+
+    // 2D/3D toggle
+    document.getElementById('btn-2d').addEventListener('click', function() {
+      state.is3D = false;
+      document.getElementById('btn-2d').classList.add('active');
+      document.getElementById('btn-3d').classList.remove('active');
+      render();
+    });
+
+    document.getElementById('btn-3d').addEventListener('click', function() {
+      state.is3D = true;
+      document.getElementById('btn-3d').classList.add('active');
+      document.getElementById('btn-2d').classList.remove('active');
+      render();
+    });
+
+    // Initialize
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Add example objects
+    createObject('point', { x: -100, y: 50 });
+    createObject('point', { x: 100, y: 50 });
+    createObject('point', { x: 0, y: -80 });
+    render();
+  </script>
+</body>
+</html>

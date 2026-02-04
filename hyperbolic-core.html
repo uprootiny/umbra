@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hyperbolic Core - Conservative Edition</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0f;
+      color: #fff;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+    #canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      cursor: grab;
+    }
+    #canvas:active { cursor: grabbing; }
+    #info {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(0,0,0,0.7);
+      padding: 15px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.6;
+      pointer-events: none;
+    }
+    #info h1 {
+      font-size: 16px;
+      margin-bottom: 10px;
+      color: #6af;
+    }
+    kbd {
+      background: rgba(255,255,255,0.1);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <div id="info">
+    <h1>Hyperbolic Core</h1>
+    <p><kbd>Drag</kbd> Pan the view</p>
+    <p><kbd>Scroll</kbd> Zoom in/out</p>
+    <p><kbd>Click</kbd> Focus on node</p>
+  </div>
+  <script src="hyperbolic-core.js"></script>
+</body>
+</html>

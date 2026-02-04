@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+PEERS="5.189.145.105 149.102.137.139 173.212.203.211 45.90.121.59"
+SELF_IPS="$(hostname -I 2>/dev/null || true)"
+OUT="$HOME/.mesh/peers.status"
+TMP="$OUT.tmp"
+TMP2="$OUT.tmp2"
+mkdir -p "$HOME/.mesh"
+# Build peer list excluding self IPs.
+PEER_LIST=""
+for peer in $PEERS; do
+  case " $SELF_IPS " in
+    *" $peer "*)
+      continue
+      ;;
+  esac
+  PEER_LIST="$PEER_LIST $peer"
+done
+set -- $PEER_LIST
+count=$#
+[ "$count" -eq 0 ] && exit 0
+# Deterministic jitter + rotate one peer per minute.
+sleep "$(( $(date +%s) % 20 ))"
+idx=$(( ( $(date +%s) / 60 ) % count + 1 ))
+selected=$(echo "$PEER_LIST" | awk -v idx="$idx" '{print $idx}')
+ts=$(date -Is)
+if ssh -i "$HOME/.ssh/mesh_host_key" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=3 "uprootiny@$selected" "echo OK" >/dev/null 2>&1; then
+  status="OK"
+else
+  status="FAIL"
+fi
+if [ -f "$OUT" ]; then
+  awk -v p="$selected" -v s="$status" -v t="$ts" 'BEGIN{found=0} $1==p {print p, s, t; found=1; next} {print} END{if(!found) print p, s, t}' "$OUT" > "$TMP2"
+else
+  echo "$selected $status $ts" > "$TMP2"
+fi
+mv "$TMP2" "$OUT"
+rm -f "$TMP"

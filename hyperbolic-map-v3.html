@@ -1,0 +1,2398 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Hyperbolic Navigator</title>
+  <style>
+    :root {
+      --bg: #06070a;
+      --surface: #0c0e14;
+      --elevated: #12151d;
+      --border: rgba(255,255,255,.06);
+      --border-focus: rgba(110,181,255,.3);
+      --text: #e8e8ec;
+      --text-secondary: #8b8b95;
+      --text-dim: #5a5a65;
+      --accent: #6eb5ff;
+      --accent-soft: rgba(110,181,255,.12);
+      --warm: #ffb574;
+      --warm-soft: rgba(255,181,116,.12);
+      --success: #7ee787;
+      --danger: #ff7b7b;
+      --purple: #d2a8ff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow: hidden;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       Layout
+       ══════════════════════════════════════════════════════════════ */
+    .app {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      grid-template-rows: 48px 1fr;
+      height: 100%;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       Command Bar (Top)
+       ══════════════════════════════════════════════════════════════ */
+    .command-bar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+    }
+    .logo svg { opacity: 0.8; }
+
+    .nav-cluster {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 4px;
+      background: var(--elevated);
+      border-radius: 8px;
+    }
+    .nav-btn {
+      width: 28px; height: 28px;
+      display: grid; place-items: center;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all .12s;
+    }
+    .nav-btn:hover { background: rgba(255,255,255,.06); color: var(--text); }
+    .nav-btn:active { transform: scale(.94); }
+    .nav-btn:disabled { opacity: .3; cursor: not-allowed; }
+    .nav-btn svg { width: 16px; height: 16px; }
+
+    .breadcrumb {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+      overflow: hidden;
+    }
+    .crumb {
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .12s;
+    }
+    .crumb:hover { background: var(--elevated); color: var(--text-secondary); }
+    .crumb.current { color: var(--text); font-weight: 500; }
+    .crumb-sep { opacity: .3; }
+
+    .omnibox {
+      position: relative;
+      width: 240px;
+    }
+    .omnibox-input {
+      width: 100%;
+      padding: 7px 12px 7px 32px;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      outline: none;
+      transition: all .15s;
+    }
+    .omnibox-input:focus {
+      border-color: var(--border-focus);
+      background: var(--surface);
+    }
+    .omnibox-input::placeholder { color: var(--text-dim); }
+    .omnibox-icon {
+      position: absolute;
+      left: 10px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+    .omnibox-hint {
+      position: absolute;
+      right: 8px; top: 50%;
+      transform: translateY(-50%);
+      padding: 2px 6px;
+      background: rgba(255,255,255,.05);
+      border-radius: 4px;
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .mode-cluster {
+      display: flex;
+      gap: 4px;
+    }
+    .mode-btn {
+      padding: 6px 10px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all .12s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .mode-btn:hover { background: var(--elevated); }
+    .mode-btn.active {
+      background: var(--accent-soft);
+      border-color: rgba(110,181,255,.2);
+      color: var(--accent);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       Canvas Viewport
+       ══════════════════════════════════════════════════════════════ */
+    .viewport {
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(ellipse at 50% 50%, #0a0c12 0%, #06070a 100%);
+    }
+
+    #canvas {
+      width: 100%; height: 100%;
+      display: block;
+      touch-action: none;
+    }
+
+    /* Cursor states */
+    .viewport.mode-pan #canvas { cursor: grab; }
+    .viewport.mode-pan.dragging #canvas { cursor: grabbing; }
+    .viewport.mode-select #canvas { cursor: crosshair; }
+    .viewport.mode-measure #canvas { cursor: crosshair; }
+    .viewport.hover-node #canvas { cursor: pointer; }
+
+    /* ══════════════════════════════════════════════════════════════
+       HUD Overlays
+       ══════════════════════════════════════════════════════════════ */
+    .hud-top-left {
+      position: absolute;
+      left: 16px; top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .metric-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .metric {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: rgba(12,14,20,.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 11px;
+      pointer-events: auto;
+    }
+    .metric-label { color: var(--text-dim); }
+    .metric-value { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .metric-value.accent { color: var(--accent); }
+    .metric-value.warm { color: var(--warm); }
+
+    /* Selection info */
+    .selection-badge {
+      padding: 6px 10px;
+      background: var(--accent-soft);
+      border: 1px solid rgba(110,181,255,.2);
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--accent);
+      display: none;
+      pointer-events: auto;
+    }
+    .selection-badge.visible { display: flex; gap: 8px; align-items: center; }
+    .selection-badge button {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    /* Context tooltip */
+    .tooltip {
+      position: absolute;
+      padding: 8px 12px;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity .15s, transform .15s;
+      z-index: 100;
+      max-width: 200px;
+    }
+    .tooltip.visible { opacity: 1; transform: translateY(0); }
+    .tooltip-title { font-weight: 600; margin-bottom: 4px; }
+    .tooltip-row { display: flex; justify-content: space-between; gap: 12px; }
+    .tooltip-key { color: var(--text-dim); }
+    .tooltip-val { color: var(--text-secondary); }
+
+    /* Minimap */
+    .minimap {
+      position: absolute;
+      bottom: 16px; left: 16px;
+      width: 120px; height: 120px;
+      background: rgba(12,14,20,.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .minimap canvas { display: block; }
+    .minimap-label {
+      position: absolute;
+      bottom: 4px; left: 8px;
+      font-size: 9px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    /* Keyboard hints */
+    .hints {
+      position: absolute;
+      bottom: 16px; right: 356px;
+      display: flex;
+      gap: 16px;
+      font-size: 10px;
+      color: var(--text-dim);
+      opacity: .7;
+    }
+    .hint { display: flex; align-items: center; gap: 4px; }
+    kbd {
+      padding: 2px 5px;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      font-family: inherit;
+      font-size: 9px;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       Right Panel
+       ══════════════════════════════════════════════════════════════ */
+    .panel {
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-tab {
+      flex: 1;
+      padding: 10px 12px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all .12s;
+    }
+    .panel-tab:hover { color: var(--text-secondary); }
+    .panel-tab.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .panel-content::-webkit-scrollbar { width: 6px; }
+    .panel-content::-webkit-scrollbar-track { background: transparent; }
+    .panel-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .panel-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-section:last-child { border-bottom: none; }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--text-dim);
+    }
+    .section-action {
+      font-size: 10px;
+      color: var(--accent);
+      cursor: pointer;
+    }
+
+    /* Node card */
+    .node-card {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .node-avatar {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: var(--accent-soft);
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .node-avatar.pinned { background: var(--warm-soft); }
+    .node-avatar.root { background: rgba(126,231,135,.12); }
+    .node-info { flex: 1; min-width: 0; }
+    .node-name {
+      font-size: 15px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .node-meta {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+    .node-badges {
+      display: flex;
+      gap: 4px;
+      margin-top: 6px;
+    }
+    .badge {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 500;
+    }
+    .badge.depth { background: var(--elevated); color: var(--text-secondary); }
+    .badge.pinned { background: var(--warm-soft); color: var(--warm); }
+    .badge.selected { background: var(--accent-soft); color: var(--accent); }
+
+    /* Properties grid */
+    .props-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .prop-item {
+      padding: 8px 10px;
+      background: var(--elevated);
+      border-radius: 6px;
+    }
+    .prop-item.full { grid-column: 1 / -1; }
+    .prop-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-bottom: 2px;
+    }
+    .prop-value {
+      font-size: 13px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+    .prop-value.mono {
+      font-family: 'SF Mono', ui-monospace, monospace;
+      font-size: 11px;
+    }
+
+    /* Action buttons */
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+    .action-btn {
+      padding: 8px 12px;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font: inherit;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all .12s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .action-btn:hover {
+      background: rgba(255,255,255,.04);
+      border-color: rgba(255,255,255,.1);
+      color: var(--text);
+    }
+    .action-btn:active { transform: scale(.97); }
+    .action-btn.primary {
+      background: var(--accent-soft);
+      border-color: rgba(110,181,255,.2);
+      color: var(--accent);
+    }
+    .action-btn.primary:hover {
+      background: rgba(110,181,255,.18);
+    }
+    .action-btn.full { grid-column: 1 / -1; }
+
+    /* Bookmarks list */
+    .bookmark-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .bookmark-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--elevated);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all .12s;
+    }
+    .bookmark-item:hover { background: rgba(255,255,255,.04); }
+    .bookmark-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .bookmark-name {
+      flex: 1;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bookmark-depth {
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+    .bookmark-remove {
+      opacity: 0;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 14px;
+      transition: opacity .12s;
+    }
+    .bookmark-item:hover .bookmark-remove { opacity: 1; }
+
+    /* Settings toggles */
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+    }
+    .setting-row + .setting-row { border-top: 1px solid var(--border); }
+    .setting-label { font-size: 12px; color: var(--text-secondary); }
+    .toggle {
+      width: 38px; height: 22px;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      position: relative;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 16px; height: 16px;
+      top: 2px; left: 2px;
+      background: var(--text-dim);
+      border-radius: 50%;
+      transition: all .15s;
+    }
+    .toggle.on {
+      background: var(--accent-soft);
+      border-color: rgba(110,181,255,.3);
+    }
+    .toggle.on::after {
+      left: 18px;
+      background: var(--accent);
+    }
+
+    /* Legend */
+    .legend-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .legend-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      padding: 12px 16px;
+      background: var(--elevated);
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .stat {
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 16px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--text-dim);
+    }
+
+    /* Empty states */
+    .empty-state {
+      padding: 24px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    /* Path panel */
+    .path-info {
+      padding: 12px;
+      background: var(--elevated);
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .path-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .path-endpoints {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+    }
+    .path-node {
+      padding: 4px 8px;
+      background: var(--surface);
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    .path-arrow { color: var(--text-dim); }
+    .path-metrics {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .path-metric span { color: var(--text); font-weight: 500; }
+
+    /* Hidden panels */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Lasso selection */
+    .lasso {
+      position: absolute;
+      border: 1px dashed var(--accent);
+      background: rgba(110,181,255,.05);
+      pointer-events: none;
+      display: none;
+    }
+    .lasso.active { display: block; }
+
+    /* Context menu */
+    .context-menu {
+      position: absolute;
+      min-width: 160px;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+      z-index: 200;
+      display: none;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+    }
+    .context-menu.visible { display: block; }
+    .context-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all .1s;
+    }
+    .context-item:hover {
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+    }
+    .context-item.danger:hover {
+      background: rgba(255,123,123,.1);
+      color: var(--danger);
+    }
+    .context-sep {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 8px;
+    }
+    .context-icon { width: 14px; text-align: center; }
+    .context-key {
+      margin-left: auto;
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Command Bar -->
+  <header class="command-bar">
+    <div class="logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      </svg>
+      <span>Hyperbolic Navigator</span>
+    </div>
+
+    <div class="nav-cluster">
+      <button class="nav-btn" id="btnBack" title="Back (⌘[)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <button class="nav-btn" id="btnFwd" title="Forward (⌘])">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+      <button class="nav-btn" id="btnHome" title="Home (H)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      </button>
+    </div>
+
+    <nav class="breadcrumb" id="breadcrumb"></nav>
+
+    <div class="omnibox">
+      <svg class="omnibox-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input type="text" class="omnibox-input" id="search" placeholder="Search nodes...">
+      <span class="omnibox-hint">⌘K</span>
+    </div>
+
+    <div class="mode-cluster">
+      <button class="mode-btn active" data-mode="pan" title="Pan mode (V)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+        Pan
+      </button>
+      <button class="mode-btn" data-mode="select" title="Select mode (S)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+        Select
+      </button>
+      <button class="mode-btn" data-mode="measure" title="Measure mode (M)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M12 2v20"/></svg>
+        Measure
+      </button>
+    </div>
+  </header>
+
+  <!-- Canvas -->
+  <main class="viewport mode-pan" id="viewport">
+    <canvas id="canvas"></canvas>
+
+    <!-- HUD -->
+    <div class="hud-top-left">
+      <div class="metric-row">
+        <div class="metric">
+          <span class="metric-label">Focus</span>
+          <span class="metric-value accent" id="hudFocus">Home</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Depth</span>
+          <span class="metric-value" id="hudDepth">0</span>
+        </div>
+      </div>
+      <div class="metric-row">
+        <div class="metric">
+          <span class="metric-label">Visible</span>
+          <span class="metric-value" id="hudVisible">0</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Zoom</span>
+          <span class="metric-value" id="hudZoom">1.00</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">d<sub>H</sub></span>
+          <span class="metric-value warm" id="hudDist">0.00</span>
+        </div>
+      </div>
+      <div class="selection-badge" id="selectionBadge">
+        <span><strong id="selCount">0</strong> selected</span>
+        <button id="clearSelection" title="Clear selection">×</button>
+      </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip">
+      <div class="tooltip-title" id="tooltipTitle">Node</div>
+      <div class="tooltip-row"><span class="tooltip-key">Depth</span><span class="tooltip-val" id="tooltipDepth">0</span></div>
+      <div class="tooltip-row"><span class="tooltip-key">Children</span><span class="tooltip-val" id="tooltipChildren">0</span></div>
+      <div class="tooltip-row"><span class="tooltip-key">Distance</span><span class="tooltip-val" id="tooltipDist">0.00</span></div>
+    </div>
+
+    <!-- Minimap -->
+    <div class="minimap">
+      <canvas id="minimap" width="120" height="120"></canvas>
+      <span class="minimap-label">Overview</span>
+    </div>
+
+    <!-- Hints -->
+    <div class="hints">
+      <div class="hint"><kbd>Drag</kbd> Pan</div>
+      <div class="hint"><kbd>Scroll</kbd> Zoom</div>
+      <div class="hint"><kbd>Click</kbd> Focus</div>
+      <div class="hint"><kbd>⇧Click</kbd> Pin</div>
+      <div class="hint"><kbd>⌘Click</kbd> Multi-select</div>
+    </div>
+
+    <!-- Lasso -->
+    <div class="lasso" id="lasso"></div>
+
+    <!-- Context Menu -->
+    <div class="context-menu" id="contextMenu">
+      <div class="context-item" data-action="focus"><span class="context-icon">⌖</span>Focus<span class="context-key">Enter</span></div>
+      <div class="context-item" data-action="pin"><span class="context-icon">◎</span>Pin/Unpin<span class="context-key">P</span></div>
+      <div class="context-item" data-action="select-children"><span class="context-icon">⊕</span>Select children</div>
+      <div class="context-item" data-action="select-ancestors"><span class="context-icon">↑</span>Select ancestors</div>
+      <div class="context-sep"></div>
+      <div class="context-item" data-action="path-to"><span class="context-icon">⤳</span>Path to...</div>
+      <div class="context-item" data-action="copy-id"><span class="context-icon">⎘</span>Copy ID<span class="context-key">⌘C</span></div>
+      <div class="context-sep"></div>
+      <div class="context-item danger" data-action="hide"><span class="context-icon">◌</span>Hide node</div>
+    </div>
+  </main>
+
+  <!-- Panel -->
+  <aside class="panel">
+    <div class="panel-tabs">
+      <button class="panel-tab active" data-tab="details">Details</button>
+      <button class="panel-tab" data-tab="bookmarks">Bookmarks</button>
+      <button class="panel-tab" data-tab="settings">Settings</button>
+    </div>
+
+    <div class="panel-content">
+      <!-- Details Tab -->
+      <div class="tab-panel active" id="tab-details">
+        <div class="panel-section">
+          <div class="node-card" id="nodeCard">
+            <div class="node-avatar" id="nodeAvatar">⬡</div>
+            <div class="node-info">
+              <div class="node-name" id="nodeName">Home</div>
+              <div class="node-meta" id="nodeMeta">Root node</div>
+              <div class="node-badges" id="nodeBadges"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Properties</span>
+          </div>
+          <div class="props-grid" id="propsGrid"></div>
+        </div>
+
+        <div class="panel-section" id="pathSection" style="display:none">
+          <div class="section-header">
+            <span class="section-title">Path</span>
+            <span class="section-action" id="clearPath">Clear</span>
+          </div>
+          <div class="path-info">
+            <div class="path-endpoints" id="pathEndpoints"></div>
+            <div class="path-metrics" id="pathMetrics"></div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Actions</span>
+          </div>
+          <div class="actions-grid">
+            <button class="action-btn primary" id="actCenter">⌖ Center</button>
+            <button class="action-btn" id="actPin">◎ Pin</button>
+            <button class="action-btn" id="actParent">↑ Go to parent</button>
+            <button class="action-btn" id="actReset">⟲ Reset view</button>
+            <button class="action-btn full" id="actNewGraph">Generate new graph</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bookmarks Tab -->
+      <div class="tab-panel" id="tab-bookmarks">
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Pinned Nodes</span>
+            <span class="section-action" id="clearPins">Clear all</span>
+          </div>
+          <div class="bookmark-list" id="bookmarkList">
+            <div class="empty-state">No pinned nodes yet.<br>Shift+click to pin.</div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Recent</span>
+          </div>
+          <div class="bookmark-list" id="recentList">
+            <div class="empty-state">Navigate to see history.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div class="tab-panel" id="tab-settings">
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Display</span>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Geodesic edges</span>
+            <div class="toggle on" data-setting="geodesics"></div>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Node labels</span>
+            <div class="toggle on" data-setting="labels"></div>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Hyperbolic grid</span>
+            <div class="toggle" data-setting="grid"></div>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Depth coloring</span>
+            <div class="toggle on" data-setting="depthColors"></div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Animation</span>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Smooth transitions</span>
+            <div class="toggle on" data-setting="animate"></div>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Momentum panning</span>
+            <div class="toggle on" data-setting="momentum"></div>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Hover effects</span>
+            <div class="toggle on" data-setting="hover"></div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Depth Legend</span>
+          </div>
+          <div class="legend-row" id="legend"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat">
+        <div class="stat-value" id="statNodes">0</div>
+        <div class="stat-label">Nodes</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statEdges">0</div>
+        <div class="stat-label">Edges</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statPinned">0</div>
+        <div class="stat-label">Pinned</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statDepth">0</div>
+        <div class="stat-label">Max Depth</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+/**
+ * Hyperbolic Navigator v3
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * USER STORIES SUPPORTED:
+ *
+ * 1. EXPLORER: "I want to navigate a large hierarchy without losing context"
+ *    - Hyperbolic geometry shows entire structure with focus+context
+ *    - Smooth animated transitions preserve spatial orientation
+ *    - Breadcrumb trail shows current path
+ *    - Minimap provides global overview
+ *
+ * 2. SEARCHER: "I need to find specific nodes quickly"
+ *    - Omnibox with fuzzy search (⌘K)
+ *    - Search highlights matches and auto-focuses
+ *    - Recent history for quick return
+ *
+ * 3. ANALYST: "I want to understand relationships and distances"
+ *    - Path finding between any two nodes
+ *    - Hyperbolic distance display
+ *    - Geodesic visualization
+ *    - Multi-select for comparison
+ *
+ * 4. CURATOR: "I need to bookmark important nodes and return to them"
+ *    - Pin nodes with Shift+click
+ *    - Bookmarks panel with quick navigation
+ *    - Persistent pinned state
+ *
+ * 5. PRESENTER: "I want to create smooth animated tours"
+ *    - Animated transitions along geodesics
+ *    - Focus mode for clean presentation
+ *    - Keyboard shortcuts for navigation
+ *
+ * AFFORDANCES:
+ * - Cursor changes indicate available actions
+ * - Hover reveals node details via tooltip
+ * - Selection highlight shows interactive elements
+ * - Visual feedback on all interactions
+ * - Consistent iconography and color coding
+ */
+
+// ════════════════════════════════════════════════════════════════════════════
+// Complex Number Arithmetic
+// ════════════════════════════════════════════════════════════════════════════
+
+const C = (re, im = 0) => ({ re, im });
+const add = (a, b) => C(a.re + b.re, a.im + b.im);
+const sub = (a, b) => C(a.re - b.re, a.im - b.im);
+const mul = (a, b) => C(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+const scale = (a, k) => C(a.re * k, a.im * k);
+const conj = a => C(a.re, -a.im);
+const abs2 = a => a.re * a.re + a.im * a.im;
+const abs = a => Math.sqrt(abs2(a));
+const arg = a => Math.atan2(a.im, a.re);
+const polar = (r, t) => C(r * Math.cos(t), r * Math.sin(t));
+const div = (a, b) => {
+  const d = abs2(b);
+  return C((a.re * b.re + a.im * b.im) / d, (a.im * b.re - a.re * b.im) / d);
+};
+
+const clampDisk = (z, eps = 1e-5) => {
+  const r = abs(z);
+  return r >= 1 - eps ? scale(z, (1 - eps) / r) : z;
+};
+
+const lerp = (a, b, t) => a + (b - a) * t;
+const clerpC = (a, b, t) => C(lerp(a.re, b.re, t), lerp(a.im, b.im, t));
+
+// ════════════════════════════════════════════════════════════════════════════
+// Hyperbolic Geometry (Poincaré Disk Model)
+// ════════════════════════════════════════════════════════════════════════════
+
+// Möbius transformation: T_a(z) = (z - a) / (1 - conj(a)·z)
+const mobius = (a, z) => div(sub(z, a), sub(C(1), mul(conj(a), z)));
+
+// Inverse: T_a^{-1}(w) = (w + a) / (1 + conj(a)·w)
+const mobiusInv = (a, w) => div(add(w, a), add(C(1), mul(conj(a), w)));
+
+// Hyperbolic distance: d(z, w) = 2·arctanh(|z - w| / |1 - conj(z)·w|)
+function hypDist(z, w) {
+  const num = abs(sub(z, w));
+  const den = abs(sub(C(1), mul(conj(z), w)));
+  const r = num / den;
+  return r >= 1 ? Infinity : 2 * Math.atanh(r);
+}
+
+// Geodesic interpolation along hyperbolic shortest path
+function geodesicLerp(z1, z2, t) {
+  if (t <= 0) return z1;
+  if (t >= 1) return z2;
+  const w = mobius(z1, z2);
+  const r = abs(w);
+  if (r < 1e-10) return z1;
+  const rInterp = Math.tanh(t * Math.atanh(Math.min(r, 0.9999)));
+  return mobiusInv(z1, polar(rInterp, arg(w)));
+}
+
+// Compute geodesic arc (for rendering true hyperbolic lines)
+function geodesicArc(z1, z2) {
+  const d = abs(sub(z1, z2));
+  if (d < 1e-8) return null;
+
+  // Check if geodesic passes through origin (straight line)
+  const cross = z1.re * z2.im - z1.im * z2.re;
+  if (Math.abs(cross) < 1e-5) {
+    return { type: 'line', z1, z2 };
+  }
+
+  // Compute circle center for geodesic arc
+  const r1sq = abs2(z1), r2sq = abs2(z2);
+  const det = 2 * cross;
+  const cx = ((1 + r1sq) * z2.im - (1 + r2sq) * z1.im) / det;
+  const cy = ((1 + r2sq) * z1.re - (1 + r1sq) * z2.re) / det;
+  const center = C(cx, cy);
+  const radius = abs(sub(z1, center));
+
+  return { type: 'arc', center, radius, z1, z2 };
+}
+
+// Hyperbolic circle (set of points at constant distance from center)
+function hypCircle(center, hypRadius, segments = 64) {
+  const points = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = (i / segments) * Math.PI * 2;
+    // Point at hyperbolic distance hypRadius from center, direction t
+    const eucR = Math.tanh(hypRadius / 2);
+    const p = mobiusInv(center, polar(eucR, t));
+    points.push(clampDisk(p));
+  }
+  return points;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Graph Data Structure
+// ════════════════════════════════════════════════════════════════════════════
+
+const DEPTH_PALETTE = [
+  '#6eb5ff', '#9d8cff', '#c77dff', '#ff8fa3',
+  '#ffb574', '#ffd666', '#7ee787', '#79c0ff'
+];
+
+function depthColor(d) {
+  return DEPTH_PALETTE[Math.min(d, DEPTH_PALETTE.length - 1)];
+}
+
+function generateGraph(count = 200, branching = 4) {
+  const nodes = new Map();
+  const edges = [];
+
+  // Root
+  const root = {
+    id: 0,
+    name: 'Home',
+    depth: 0,
+    parent: null,
+    children: [],
+    z: C(0, 0),
+    pinned: false,
+    hidden: false,
+  };
+  nodes.set(0, root);
+
+  let id = 1;
+  const queue = [root];
+
+  while (id < count && queue.length) {
+    const parent = queue.shift();
+    const branches = 1 + Math.floor(Math.random() * branching);
+
+    for (let i = 0; i < branches && id < count; i++) {
+      const depth = parent.depth + 1;
+
+      // Hyperbolic placement: children spread around parent
+      const baseAngle = abs(parent.z) < 0.01
+        ? (i / branches) * 2 * Math.PI
+        : arg(parent.z);
+      const spread = Math.PI / Math.max(2, branches);
+      const angle = baseAngle + (i - (branches - 1) / 2) * spread * 0.7 + (Math.random() - 0.5) * 0.4;
+
+      // Radius increases with depth (hyperbolic packing)
+      const r = Math.tanh(0.25 + depth * 0.12 + Math.random() * 0.08);
+      const z = clampDisk(polar(r, angle));
+
+      const node = {
+        id,
+        name: `Node ${id}`,
+        depth,
+        parent: parent.id,
+        children: [],
+        z,
+        pinned: false,
+        hidden: false,
+      };
+
+      nodes.set(id, node);
+      edges.push([parent.id, id]);
+      parent.children.push(id);
+
+      if (depth < 9 && Math.random() < 0.82) {
+        queue.push(node);
+      }
+      id++;
+    }
+  }
+
+  const maxDepth = Math.max(...[...nodes.values()].map(n => n.depth));
+
+  return { nodes, edges, maxDepth };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Application State
+// ════════════════════════════════════════════════════════════════════════════
+
+const state = {
+  graph: generateGraph(),
+
+  // Camera (hyperbolic transform parameter)
+  camera: C(0, 0),
+  targetCamera: C(0, 0),
+  zoom: 1.0,
+  targetZoom: 1.0,
+
+  // Selection
+  focus: 0,           // Primary focused node
+  selected: new Set([0]), // Multi-selection
+  hovered: null,      // Currently hovered node
+
+  // Path measurement
+  pathStart: null,
+  pathEnd: null,
+
+  // Physics
+  velocity: C(0, 0),
+  friction: 0.88,
+
+  // History
+  history: [{ focus: 0, camera: C(0, 0), zoom: 1 }],
+  historyIdx: 0,
+
+  // Interaction mode
+  mode: 'pan', // 'pan' | 'select' | 'measure'
+
+  // Settings
+  settings: {
+    geodesics: true,
+    labels: true,
+    grid: false,
+    depthColors: true,
+    animate: true,
+    momentum: true,
+    hover: true,
+  },
+
+  // UI state
+  dragging: false,
+  dragStart: null,
+  lastPointer: null,
+  lastTime: 0,
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// Canvas Setup
+// ════════════════════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const miniCanvas = document.getElementById('minimap');
+const miniCtx = miniCanvas.getContext('2d');
+const viewport = document.getElementById('viewport');
+
+function resize() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ════════════════════════════════════════════════════════════════════════════
+// Coordinate Transforms
+// ════════════════════════════════════════════════════════════════════════════
+
+function getDiskParams(W, H) {
+  const pad = 50;
+  const R = Math.min(W, H) / 2 - pad;
+  return { cx: W / 2, cy: H / 2, R };
+}
+
+function toScreen(z, W, H) {
+  const { cx, cy, R } = getDiskParams(W, H);
+  return {
+    x: cx + z.re * R * state.zoom,
+    y: cy + z.im * R * state.zoom
+  };
+}
+
+function fromScreen(x, y, W, H) {
+  const { cx, cy, R } = getDiskParams(W, H);
+  return C(
+    (x - cx) / (R * state.zoom),
+    (y - cy) / (R * state.zoom)
+  );
+}
+
+function transformNode(node) {
+  return clampDisk(mobius(state.camera, node.z));
+}
+
+function nodeScreenPos(node, W, H) {
+  return toScreen(transformNode(node), W, H);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Rendering
+// ════════════════════════════════════════════════════════════════════════════
+
+function render() {
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+
+  updatePhysics();
+
+  ctx.clearRect(0, 0, W, H);
+  drawBackground(W, H);
+  drawEdges(W, H);
+  drawNodes(W, H);
+  drawPath(W, H);
+
+  renderMinimap();
+  updateHUD();
+
+  requestAnimationFrame(render);
+}
+
+function drawBackground(W, H) {
+  const { cx, cy, R } = getDiskParams(W, H);
+
+  // Ambient glow
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.2);
+  glow.addColorStop(0, 'rgba(110, 181, 255, 0.03)');
+  glow.addColorStop(0.5, 'rgba(110, 181, 255, 0.01)');
+  glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+
+  // Disk boundary
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(110, 181, 255, 0.2)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Inner glow
+  const inner = ctx.createRadialGradient(cx, cy, R * 0.8, cx, cy, R);
+  inner.addColorStop(0, 'transparent');
+  inner.addColorStop(1, 'rgba(110, 181, 255, 0.05)');
+  ctx.fillStyle = inner;
+  ctx.fill();
+
+  // Grid (hyperbolic circles)
+  if (state.settings.grid) {
+    ctx.strokeStyle = 'rgba(110, 181, 255, 0.06)';
+    ctx.lineWidth = 1;
+
+    // Concentric hyperbolic circles
+    for (let d = 0.5; d <= 3; d += 0.5) {
+      const eucR = R * Math.tanh(d / 2) * state.zoom;
+      ctx.beginPath();
+      ctx.arc(cx, cy, eucR, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Radial geodesics through origin
+    for (let i = 0; i < 12; i++) {
+      const t = (i / 12) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + R * Math.cos(t), cy + R * Math.sin(t));
+      ctx.stroke();
+    }
+  }
+}
+
+function drawGeodesicEdge(z1, z2, W, H, alpha = 0.1) {
+  const p1 = toScreen(z1, W, H);
+  const p2 = toScreen(z2, W, H);
+  const { R } = getDiskParams(W, H);
+
+  ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+
+  if (!state.settings.geodesics) {
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+    return;
+  }
+
+  const arc = geodesicArc(z1, z2);
+  if (!arc) return;
+
+  if (arc.type === 'line') {
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+  } else {
+    const pc = toScreen(arc.center, W, H);
+    const sR = arc.radius * R * state.zoom;
+    const t1 = Math.atan2(p1.y - pc.y, p1.x - pc.x);
+    const t2 = Math.atan2(p2.y - pc.y, p2.x - pc.x);
+
+    let dt = t2 - t1;
+    while (dt > Math.PI) dt -= 2 * Math.PI;
+    while (dt < -Math.PI) dt += 2 * Math.PI;
+
+    ctx.arc(pc.x, pc.y, sR, t1, t2, dt < 0);
+  }
+  ctx.stroke();
+}
+
+function drawEdges(W, H) {
+  for (const [aId, bId] of state.graph.edges) {
+    const a = state.graph.nodes.get(aId);
+    const b = state.graph.nodes.get(bId);
+    if (!a || !b || a.hidden || b.hidden) continue;
+
+    const za = transformNode(a);
+    const zb = transformNode(b);
+
+    // Cull edges far outside view
+    if (abs(za) > 1.8 && abs(zb) > 1.8) continue;
+
+    // Alpha based on depth and position
+    const avgDepth = (a.depth + b.depth) / 2;
+    const avgDist = (abs(za) + abs(zb)) / 2;
+    const alpha = Math.max(0.03, 0.12 - avgDepth * 0.008 - avgDist * 0.05);
+
+    drawGeodesicEdge(za, zb, W, H, alpha);
+  }
+}
+
+function drawNodes(W, H) {
+  // Sort by transformed distance (far first for proper layering)
+  const sorted = [...state.graph.nodes.values()]
+    .filter(n => !n.hidden)
+    .map(n => ({ node: n, dist: abs2(transformNode(n)) }))
+    .sort((a, b) => b.dist - a.dist);
+
+  for (const { node } of sorted) {
+    drawNode(node, W, H);
+  }
+}
+
+function drawNode(node, W, H) {
+  const z = transformNode(node);
+  const r2 = abs2(z);
+  if (r2 > 2.5) return;
+
+  const p = toScreen(z, W, H);
+  const isFocus = node.id === state.focus;
+  const isSelected = state.selected.has(node.id);
+  const isHovered = node.id === state.hovered;
+
+  // Size: larger near center
+  const baseSize = isFocus ? 10 : (isSelected ? 8 : 6);
+  const sizeScale = 1.4 - 0.9 * Math.min(1, Math.sqrt(r2));
+  let size = baseSize * sizeScale;
+
+  if (isHovered && state.settings.hover) size *= 1.15;
+
+  // Color
+  const color = state.settings.depthColors ? depthColor(node.depth) : '#6eb5ff';
+
+  // Glow for special nodes
+  if (isFocus || node.pinned || isSelected) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, size + 10, 0, Math.PI * 2);
+    if (node.pinned) {
+      ctx.fillStyle = 'rgba(255, 181, 116, 0.2)';
+    } else if (isFocus) {
+      ctx.fillStyle = 'rgba(110, 181, 255, 0.25)';
+    } else {
+      ctx.fillStyle = 'rgba(126, 231, 135, 0.15)';
+    }
+    ctx.fill();
+  }
+
+  // Hover ring
+  if (isHovered && state.settings.hover) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, size + 5, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Node body
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+
+  if (isFocus) {
+    const grad = ctx.createRadialGradient(p.x - size/3, p.y - size/3, 0, p.x, p.y, size);
+    grad.addColorStop(0, '#9dd5ff');
+    grad.addColorStop(1, '#6eb5ff');
+    ctx.fillStyle = grad;
+    ctx.shadowColor = '#6eb5ff';
+    ctx.shadowBlur = 15;
+  } else if (node.pinned) {
+    ctx.fillStyle = '#ffb574';
+    ctx.shadowColor = '#ffb574';
+    ctx.shadowBlur = 10;
+  } else {
+    const grad = ctx.createRadialGradient(p.x - size/3, p.y - size/3, 0, p.x, p.y, size);
+    grad.addColorStop(0, color);
+    grad.addColorStop(1, adjustColor(color, -25));
+    ctx.fillStyle = grad;
+    ctx.shadowBlur = 0;
+  }
+
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Border
+  ctx.strokeStyle = isFocus ? 'rgba(110, 181, 255, 0.6)' :
+                    isSelected ? 'rgba(126, 231, 135, 0.5)' :
+                    'rgba(255, 255, 255, 0.1)';
+  ctx.lineWidth = isFocus ? 2 : 1;
+  ctx.stroke();
+
+  // Label
+  if (state.settings.labels && (r2 < 0.4 || isFocus || node.pinned || isHovered)) {
+    ctx.font = `${isFocus ? '600 ' : ''}11px -apple-system, BlinkMacSystemFont, sans-serif`;
+    ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.4, 0.95 - r2 * 0.6)})`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(node.name, p.x + size + 6, p.y);
+  }
+}
+
+function drawPath(W, H) {
+  if (!state.pathStart || !state.pathEnd) return;
+
+  const start = state.graph.nodes.get(state.pathStart);
+  const end = state.graph.nodes.get(state.pathEnd);
+  if (!start || !end) return;
+
+  // Draw geodesic path
+  const z1 = transformNode(start);
+  const z2 = transformNode(end);
+
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = '#d2a8ff';
+  ctx.lineWidth = 2;
+
+  const arc = geodesicArc(z1, z2);
+  if (arc) {
+    const p1 = toScreen(z1, W, H);
+    const p2 = toScreen(z2, W, H);
+    ctx.beginPath();
+
+    if (arc.type === 'line') {
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+    } else {
+      const { R } = getDiskParams(W, H);
+      const pc = toScreen(arc.center, W, H);
+      const sR = arc.radius * R * state.zoom;
+      const t1 = Math.atan2(p1.y - pc.y, p1.x - pc.x);
+      const t2 = Math.atan2(p2.y - pc.y, p2.x - pc.x);
+      let dt = t2 - t1;
+      while (dt > Math.PI) dt -= 2 * Math.PI;
+      while (dt < -Math.PI) dt += 2 * Math.PI;
+      ctx.arc(pc.x, pc.y, sR, t1, t2, dt < 0);
+    }
+    ctx.stroke();
+  }
+
+  ctx.setLineDash([]);
+}
+
+function adjustColor(hex, amt) {
+  const num = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amt));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amt));
+  const b = Math.min(255, Math.max(0, (num & 0xff) + amt));
+  return `rgb(${r},${g},${b})`;
+}
+
+function renderMinimap() {
+  const W = 120, H = 120;
+  const R = 50;
+  const cx = W / 2, cy = H / 2;
+
+  miniCtx.clearRect(0, 0, W, H);
+
+  // Disk
+  miniCtx.beginPath();
+  miniCtx.arc(cx, cy, R, 0, Math.PI * 2);
+  miniCtx.strokeStyle = 'rgba(110, 181, 255, 0.3)';
+  miniCtx.lineWidth = 1;
+  miniCtx.stroke();
+
+  // Nodes
+  for (const node of state.graph.nodes.values()) {
+    if (node.hidden) continue;
+    const z = transformNode(node);
+    if (abs(z) > 1.2) continue;
+
+    const x = cx + z.re * R;
+    const y = cy + z.im * R;
+    const isFocus = node.id === state.focus;
+
+    miniCtx.beginPath();
+    miniCtx.arc(x, y, isFocus ? 3 : 1.5, 0, Math.PI * 2);
+    miniCtx.fillStyle = isFocus ? '#6eb5ff' : (node.pinned ? '#ffb574' : 'rgba(255,255,255,0.4)');
+    miniCtx.fill();
+  }
+
+  // Camera viewport indicator
+  const viewR = R / state.zoom * 0.8;
+  miniCtx.beginPath();
+  miniCtx.arc(cx, cy, viewR, 0, Math.PI * 2);
+  miniCtx.strokeStyle = 'rgba(110, 181, 255, 0.4)';
+  miniCtx.setLineDash([2, 2]);
+  miniCtx.stroke();
+  miniCtx.setLineDash([]);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Physics & Animation
+// ════════════════════════════════════════════════════════════════════════════
+
+function updatePhysics() {
+  // Momentum
+  if (!state.dragging && state.settings.momentum && abs(state.velocity) > 0.0001) {
+    const step = scale(state.velocity, 0.016);
+    state.camera = clampDisk(mobiusInv(step, state.camera));
+    state.velocity = scale(state.velocity, state.friction);
+  }
+
+  // Smooth camera
+  if (state.settings.animate) {
+    const dist = abs(sub(state.camera, state.targetCamera));
+    if (dist > 0.001) {
+      state.camera = geodesicLerp(state.camera, state.targetCamera, 0.12);
+    }
+  }
+
+  // Smooth zoom
+  if (Math.abs(state.zoom - state.targetZoom) > 0.001) {
+    state.zoom += (state.targetZoom - state.zoom) * 0.15;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Hit Testing
+// ════════════════════════════════════════════════════════════════════════════
+
+function hitTest(x, y) {
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+
+  let closest = null;
+  let closestD2 = Infinity;
+
+  for (const node of state.graph.nodes.values()) {
+    if (node.hidden) continue;
+    const p = nodeScreenPos(node, W, H);
+    const dx = p.x - x, dy = p.y - y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < closestD2) {
+      closestD2 = d2;
+      closest = node;
+    }
+  }
+
+  return closestD2 < 400 ? closest : null;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Interaction Handlers
+// ════════════════════════════════════════════════════════════════════════════
+
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  state.dragging = true;
+  state.dragStart = { x: e.offsetX, y: e.offsetY };
+  state.lastPointer = { x: e.offsetX, y: e.offsetY };
+  state.lastTime = performance.now();
+  state.velocity = C(0, 0);
+
+  viewport.classList.add('dragging');
+  hideContextMenu();
+});
+
+canvas.addEventListener('pointermove', e => {
+  // Hover detection
+  const hit = hitTest(e.offsetX, e.offsetY);
+  const wasHovered = state.hovered;
+  state.hovered = hit ? hit.id : null;
+
+  if (state.hovered !== wasHovered) {
+    viewport.classList.toggle('hover-node', state.hovered !== null);
+    if (hit && state.settings.hover) {
+      showTooltip(hit, e.offsetX, e.offsetY);
+    } else {
+      hideTooltip();
+    }
+  }
+
+  if (!state.dragging) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  const now = { x: e.offsetX, y: e.offsetY };
+  const dt = Math.max(1, performance.now() - state.lastTime) / 1000;
+
+  if (state.mode === 'pan') {
+    const z0 = fromScreen(state.lastPointer.x, state.lastPointer.y, W, H);
+    const z1 = fromScreen(now.x, now.y, W, H);
+    const delta = sub(z0, z1);
+    const scaleFactor = 0.75 / Math.max(0.3, state.zoom);
+    const step = clampDisk(scale(delta, scaleFactor));
+
+    state.camera = clampDisk(mobiusInv(step, state.camera));
+    state.targetCamera = state.camera;
+    state.velocity = scale(delta, scaleFactor / dt * 0.25);
+  }
+
+  state.lastPointer = now;
+  state.lastTime = performance.now();
+});
+
+canvas.addEventListener('pointerup', e => {
+  state.dragging = false;
+  viewport.classList.remove('dragging');
+});
+
+canvas.addEventListener('click', e => {
+  const hit = hitTest(e.offsetX, e.offsetY);
+  if (!hit) return;
+
+  if (e.shiftKey) {
+    // Toggle pin
+    hit.pinned = !hit.pinned;
+    updatePanel();
+    return;
+  }
+
+  if (e.metaKey || e.ctrlKey) {
+    // Multi-select
+    if (state.selected.has(hit.id)) {
+      state.selected.delete(hit.id);
+    } else {
+      state.selected.add(hit.id);
+    }
+    updateSelectionBadge();
+    return;
+  }
+
+  if (state.mode === 'measure') {
+    if (!state.pathStart) {
+      state.pathStart = hit.id;
+    } else {
+      state.pathEnd = hit.id;
+      updatePathPanel();
+    }
+    return;
+  }
+
+  // Focus
+  focusNode(hit.id);
+});
+
+canvas.addEventListener('dblclick', e => {
+  const hit = hitTest(e.offsetX, e.offsetY);
+  if (hit) {
+    focusNode(hit.id);
+    state.targetZoom = Math.min(2, state.zoom * 1.5);
+  }
+});
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const hit = hitTest(e.offsetX, e.offsetY);
+  if (hit) {
+    state.focus = hit.id;
+    state.selected.clear();
+    state.selected.add(hit.id);
+    showContextMenu(e.offsetX, e.offsetY, hit);
+  }
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = Math.exp(-e.deltaY * 0.002);
+  state.targetZoom = Math.max(0.3, Math.min(3, state.targetZoom * factor));
+}, { passive: false });
+
+// ════════════════════════════════════════════════════════════════════════════
+// Navigation
+// ════════════════════════════════════════════════════════════════════════════
+
+function focusNode(id) {
+  const node = state.graph.nodes.get(id);
+  if (!node) return;
+
+  state.focus = id;
+  state.selected.clear();
+  state.selected.add(id);
+  state.targetCamera = clampDisk(node.z);
+  if (!state.settings.animate) state.camera = state.targetCamera;
+  state.velocity = C(0, 0);
+
+  pushHistory();
+  updatePanel();
+  updateBreadcrumb();
+  updateSelectionBadge();
+}
+
+function goHome() {
+  state.focus = 0;
+  state.selected.clear();
+  state.selected.add(0);
+  state.targetCamera = C(0, 0);
+  state.targetZoom = 1;
+  if (!state.settings.animate) {
+    state.camera = C(0, 0);
+    state.zoom = 1;
+  }
+  state.velocity = C(0, 0);
+  pushHistory();
+  updatePanel();
+  updateBreadcrumb();
+}
+
+function goToParent() {
+  const node = state.graph.nodes.get(state.focus);
+  if (node && node.parent !== null) {
+    focusNode(node.parent);
+  }
+}
+
+function pushHistory() {
+  state.history = state.history.slice(0, state.historyIdx + 1);
+  state.history.push({
+    focus: state.focus,
+    camera: C(state.camera.re, state.camera.im),
+    zoom: state.zoom
+  });
+  state.historyIdx = state.history.length - 1;
+  if (state.history.length > 50) {
+    state.history.shift();
+    state.historyIdx--;
+  }
+  updateRecentList();
+}
+
+function goBack() {
+  if (state.historyIdx > 0) {
+    state.historyIdx--;
+    applyHistory(state.history[state.historyIdx]);
+  }
+}
+
+function goForward() {
+  if (state.historyIdx < state.history.length - 1) {
+    state.historyIdx++;
+    applyHistory(state.history[state.historyIdx]);
+  }
+}
+
+function applyHistory(h) {
+  state.focus = h.focus;
+  state.selected.clear();
+  state.selected.add(h.focus);
+  state.targetCamera = h.camera;
+  state.targetZoom = h.zoom;
+  if (!state.settings.animate) {
+    state.camera = h.camera;
+    state.zoom = h.zoom;
+  }
+  updatePanel();
+  updateBreadcrumb();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// UI Updates
+// ════════════════════════════════════════════════════════════════════════════
+
+function updateHUD() {
+  const node = state.graph.nodes.get(state.focus);
+  if (!node) return;
+
+  document.getElementById('hudFocus').textContent = node.name;
+  document.getElementById('hudDepth').textContent = node.depth;
+  document.getElementById('hudZoom').textContent = state.zoom.toFixed(2);
+  document.getElementById('hudDist').textContent = hypDist(C(0, 0), node.z).toFixed(2);
+
+  const visible = [...state.graph.nodes.values()].filter(n => !n.hidden && abs(transformNode(n)) < 1.1).length;
+  document.getElementById('hudVisible').textContent = visible;
+
+  // Stats
+  document.getElementById('statNodes').textContent = state.graph.nodes.size;
+  document.getElementById('statEdges').textContent = state.graph.edges.length;
+  document.getElementById('statPinned').textContent = [...state.graph.nodes.values()].filter(n => n.pinned).length;
+  document.getElementById('statDepth').textContent = state.graph.maxDepth;
+}
+
+function updatePanel() {
+  const node = state.graph.nodes.get(state.focus);
+  if (!node) return;
+
+  // Avatar
+  const avatar = document.getElementById('nodeAvatar');
+  avatar.textContent = node.depth === 0 ? '⌂' : '⬡';
+  avatar.className = 'node-avatar' + (node.pinned ? ' pinned' : '') + (node.depth === 0 ? ' root' : '');
+
+  // Info
+  document.getElementById('nodeName').textContent = node.name;
+  document.getElementById('nodeMeta').textContent = `Depth ${node.depth} • ${node.children.length} children`;
+
+  // Badges
+  const badges = document.getElementById('nodeBadges');
+  badges.innerHTML = '';
+
+  const depthBadge = document.createElement('span');
+  depthBadge.className = 'badge depth';
+  depthBadge.textContent = `Level ${node.depth}`;
+  badges.appendChild(depthBadge);
+
+  if (node.pinned) {
+    const pinBadge = document.createElement('span');
+    pinBadge.className = 'badge pinned';
+    pinBadge.textContent = 'Pinned';
+    badges.appendChild(pinBadge);
+  }
+
+  // Properties
+  const props = document.getElementById('propsGrid');
+  props.innerHTML = '';
+
+  const data = [
+    { label: 'ID', value: node.id, full: false },
+    { label: 'Children', value: node.children.length, full: false },
+    { label: 'Position |z|', value: abs(node.z).toFixed(4), full: false },
+    { label: 'Hyp. Distance', value: hypDist(C(0,0), node.z).toFixed(3), full: false },
+    { label: 'Camera', value: `${state.camera.re.toFixed(3)} + ${state.camera.im.toFixed(3)}i`, full: true, mono: true },
+  ];
+
+  for (const { label, value, full, mono } of data) {
+    const item = document.createElement('div');
+    item.className = 'prop-item' + (full ? ' full' : '');
+    item.innerHTML = `
+      <div class="prop-label">${label}</div>
+      <div class="prop-value${mono ? ' mono' : ''}">${value}</div>
+    `;
+    props.appendChild(item);
+  }
+
+  // Pin button
+  document.getElementById('actPin').textContent = node.pinned ? '◎ Unpin' : '◎ Pin';
+
+  // Bookmarks
+  updateBookmarkList();
+}
+
+function updateBreadcrumb() {
+  const crumb = document.getElementById('breadcrumb');
+  crumb.innerHTML = '';
+
+  const path = [];
+  let cur = state.graph.nodes.get(state.focus);
+  while (cur) {
+    path.unshift(cur);
+    cur = cur.parent !== null ? state.graph.nodes.get(cur.parent) : null;
+  }
+
+  path.forEach((node, i) => {
+    if (i > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'crumb-sep';
+      sep.textContent = '›';
+      crumb.appendChild(sep);
+    }
+
+    const el = document.createElement('span');
+    el.className = 'crumb' + (i === path.length - 1 ? ' current' : '');
+    el.textContent = node.name;
+    el.onclick = () => focusNode(node.id);
+    crumb.appendChild(el);
+  });
+}
+
+function updateSelectionBadge() {
+  const badge = document.getElementById('selectionBadge');
+  const count = state.selected.size;
+  badge.classList.toggle('visible', count > 1);
+  document.getElementById('selCount').textContent = count;
+}
+
+function updateBookmarkList() {
+  const list = document.getElementById('bookmarkList');
+  const pinned = [...state.graph.nodes.values()].filter(n => n.pinned);
+
+  if (pinned.length === 0) {
+    list.innerHTML = '<div class="empty-state">No pinned nodes yet.<br>Shift+click to pin.</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  for (const node of pinned) {
+    const item = document.createElement('div');
+    item.className = 'bookmark-item';
+    item.innerHTML = `
+      <div class="bookmark-dot" style="background:${depthColor(node.depth)}"></div>
+      <span class="bookmark-name">${node.name}</span>
+      <span class="bookmark-depth">d${node.depth}</span>
+      <button class="bookmark-remove" data-id="${node.id}">×</button>
+    `;
+    item.onclick = e => {
+      if (e.target.classList.contains('bookmark-remove')) {
+        node.pinned = false;
+        updateBookmarkList();
+        updatePanel();
+      } else {
+        focusNode(node.id);
+      }
+    };
+    list.appendChild(item);
+  }
+}
+
+function updateRecentList() {
+  const list = document.getElementById('recentList');
+  const recent = state.history.slice(-8).reverse();
+
+  if (recent.length <= 1) {
+    list.innerHTML = '<div class="empty-state">Navigate to see history.</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  for (const h of recent) {
+    const node = state.graph.nodes.get(h.focus);
+    if (!node) continue;
+
+    const item = document.createElement('div');
+    item.className = 'bookmark-item';
+    item.innerHTML = `
+      <div class="bookmark-dot" style="background:${depthColor(node.depth)}"></div>
+      <span class="bookmark-name">${node.name}</span>
+      <span class="bookmark-depth">d${node.depth}</span>
+    `;
+    item.onclick = () => focusNode(node.id);
+    list.appendChild(item);
+  }
+}
+
+function updatePathPanel() {
+  const section = document.getElementById('pathSection');
+  if (!state.pathStart || !state.pathEnd) {
+    section.style.display = 'none';
+    return;
+  }
+
+  const start = state.graph.nodes.get(state.pathStart);
+  const end = state.graph.nodes.get(state.pathEnd);
+  if (!start || !end) return;
+
+  section.style.display = 'block';
+
+  document.getElementById('pathEndpoints').innerHTML = `
+    <span class="path-node">${start.name}</span>
+    <span class="path-arrow">→</span>
+    <span class="path-node">${end.name}</span>
+  `;
+
+  const dist = hypDist(start.z, end.z);
+  document.getElementById('pathMetrics').innerHTML = `
+    <span>Distance: <span>${dist.toFixed(3)}</span></span>
+    <span>Depth diff: <span>${Math.abs(start.depth - end.depth)}</span></span>
+  `;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Tooltip & Context Menu
+// ════════════════════════════════════════════════════════════════════════════
+
+const tooltip = document.getElementById('tooltip');
+
+function showTooltip(node, x, y) {
+  document.getElementById('tooltipTitle').textContent = node.name;
+  document.getElementById('tooltipDepth').textContent = node.depth;
+  document.getElementById('tooltipChildren').textContent = node.children.length;
+  document.getElementById('tooltipDist').textContent = hypDist(C(0,0), node.z).toFixed(2);
+
+  tooltip.style.left = (x + 15) + 'px';
+  tooltip.style.top = (y + 15) + 'px';
+  tooltip.classList.add('visible');
+}
+
+function hideTooltip() {
+  tooltip.classList.remove('visible');
+}
+
+const contextMenu = document.getElementById('contextMenu');
+let contextNode = null;
+
+function showContextMenu(x, y, node) {
+  contextNode = node;
+  contextMenu.style.left = x + 'px';
+  contextMenu.style.top = y + 'px';
+  contextMenu.classList.add('visible');
+}
+
+function hideContextMenu() {
+  contextMenu.classList.remove('visible');
+  contextNode = null;
+}
+
+contextMenu.addEventListener('click', e => {
+  const item = e.target.closest('.context-item');
+  if (!item || !contextNode) return;
+
+  const action = item.dataset.action;
+
+  switch (action) {
+    case 'focus':
+      focusNode(contextNode.id);
+      break;
+    case 'pin':
+      contextNode.pinned = !contextNode.pinned;
+      updatePanel();
+      break;
+    case 'select-children':
+      for (const cid of contextNode.children) {
+        state.selected.add(cid);
+      }
+      updateSelectionBadge();
+      break;
+    case 'select-ancestors':
+      let cur = contextNode;
+      while (cur) {
+        state.selected.add(cur.id);
+        cur = cur.parent !== null ? state.graph.nodes.get(cur.parent) : null;
+      }
+      updateSelectionBadge();
+      break;
+    case 'path-to':
+      state.pathStart = state.focus;
+      state.pathEnd = contextNode.id;
+      updatePathPanel();
+      break;
+    case 'copy-id':
+      navigator.clipboard?.writeText(String(contextNode.id));
+      break;
+    case 'hide':
+      contextNode.hidden = true;
+      break;
+  }
+
+  hideContextMenu();
+});
+
+document.addEventListener('click', e => {
+  if (!contextMenu.contains(e.target)) {
+    hideContextMenu();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Keyboard Shortcuts
+// ════════════════════════════════════════════════════════════════════════════
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') {
+    if (e.key === 'Escape') e.target.blur();
+    return;
+  }
+
+  switch (e.key) {
+    case 'h':
+    case 'H':
+      goHome();
+      break;
+    case 'v':
+    case 'V':
+      setMode('pan');
+      break;
+    case 's':
+    case 'S':
+      setMode('select');
+      break;
+    case 'm':
+    case 'M':
+      setMode('measure');
+      break;
+    case 'p':
+    case 'P':
+      const node = state.graph.nodes.get(state.focus);
+      if (node) {
+        node.pinned = !node.pinned;
+        updatePanel();
+      }
+      break;
+    case 'Escape':
+      state.selected.clear();
+      state.selected.add(state.focus);
+      state.pathStart = null;
+      state.pathEnd = null;
+      updateSelectionBadge();
+      updatePathPanel();
+      hideContextMenu();
+      break;
+    case 'ArrowUp':
+      goToParent();
+      break;
+    case '[':
+      if (e.metaKey || e.ctrlKey) {
+        e.preventDefault();
+        goBack();
+      }
+      break;
+    case ']':
+      if (e.metaKey || e.ctrlKey) {
+        e.preventDefault();
+        goForward();
+      }
+      break;
+    case 'k':
+      if (e.metaKey || e.ctrlKey) {
+        e.preventDefault();
+        document.getElementById('search').focus();
+      }
+      break;
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Mode Switching
+// ════════════════════════════════════════════════════════════════════════════
+
+function setMode(mode) {
+  state.mode = mode;
+  viewport.className = `viewport mode-${mode}`;
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+
+  // Reset mode-specific state
+  if (mode !== 'measure') {
+    state.pathStart = null;
+    state.pathEnd = null;
+    updatePathPanel();
+  }
+}
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.onclick = () => setMode(btn.dataset.mode);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Panel Tabs
+// ════════════════════════════════════════════════════════════════════════════
+
+document.querySelectorAll('.panel-tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+  };
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Settings Toggles
+// ════════════════════════════════════════════════════════════════════════════
+
+document.querySelectorAll('.toggle[data-setting]').forEach(toggle => {
+  const key = toggle.dataset.setting;
+  toggle.classList.toggle('on', state.settings[key]);
+  toggle.onclick = () => {
+    state.settings[key] = !state.settings[key];
+    toggle.classList.toggle('on', state.settings[key]);
+  };
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Search
+// ════════════════════════════════════════════════════════════════════════════
+
+const searchInput = document.getElementById('search');
+
+searchInput.addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  if (!q) return;
+
+  const matches = [...state.graph.nodes.values()].filter(n =>
+    n.name.toLowerCase().includes(q)
+  );
+
+  if (matches.length > 0) {
+    focusNode(matches[0].id);
+  }
+});
+
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    searchInput.blur();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Button Handlers
+// ════════════════════════════════════════════════════════════════════════════
+
+document.getElementById('btnHome').onclick = goHome;
+document.getElementById('btnBack').onclick = goBack;
+document.getElementById('btnFwd').onclick = goForward;
+
+document.getElementById('actCenter').onclick = () => {
+  const node = state.graph.nodes.get(state.focus);
+  if (node) {
+    state.targetCamera = clampDisk(node.z);
+    state.velocity = C(0, 0);
+  }
+};
+
+document.getElementById('actPin').onclick = () => {
+  const node = state.graph.nodes.get(state.focus);
+  if (node) {
+    node.pinned = !node.pinned;
+    updatePanel();
+  }
+};
+
+document.getElementById('actParent').onclick = goToParent;
+
+document.getElementById('actReset').onclick = () => {
+  state.targetCamera = C(0, 0);
+  state.targetZoom = 1;
+  state.velocity = C(0, 0);
+};
+
+document.getElementById('actNewGraph').onclick = () => {
+  state.graph = generateGraph(200, 4);
+  state.camera = C(0, 0);
+  state.targetCamera = C(0, 0);
+  state.zoom = 1;
+  state.targetZoom = 1;
+  state.focus = 0;
+  state.selected.clear();
+  state.selected.add(0);
+  state.history = [{ focus: 0, camera: C(0, 0), zoom: 1 }];
+  state.historyIdx = 0;
+  updatePanel();
+  updateBreadcrumb();
+};
+
+document.getElementById('clearSelection').onclick = () => {
+  state.selected.clear();
+  state.selected.add(state.focus);
+  updateSelectionBadge();
+};
+
+document.getElementById('clearPins').onclick = () => {
+  for (const node of state.graph.nodes.values()) {
+    node.pinned = false;
+  }
+  updateBookmarkList();
+  updatePanel();
+};
+
+document.getElementById('clearPath').onclick = () => {
+  state.pathStart = null;
+  state.pathEnd = null;
+  updatePathPanel();
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// Legend
+// ════════════════════════════════════════════════════════════════════════════
+
+const legend = document.getElementById('legend');
+DEPTH_PALETTE.forEach((color, i) => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.innerHTML = `<div class="legend-dot" style="background:${color}"></div>${i}`;
+  legend.appendChild(item);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Initialize
+// ════════════════════════════════════════════════════════════════════════════
+
+updatePanel();
+updateBreadcrumb();
+requestAnimationFrame(render);
+</script>
+</body>
+</html>

@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Category-Theoretic Computation - Refl Loops</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep: #08080c;
+      --bg-surface: #0f0f18;
+      --bg-card: #15151f;
+      --bg-hover: #1a1a28;
+      --border: #252535;
+      --text-primary: #e8e8f0;
+      --text-secondary: #a0a0b0;
+      --text-muted: #606070;
+      --accent-type: #a29bfe;
+      --accent-term: #7ee787;
+      --accent-refl: #45b7d1;
+      --accent-transport: #ff9bce;
+      --accent-elim: #ffb574;
+    }
+
+    body {
+      font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    #canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* Expanded computation card overlay */
+    .computation-card {
+      position: fixed;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.8);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 1000;
+    }
+
+    .computation-card.visible {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: auto;
+    }
+
+    .computation-card.clicked {
+      pointer-events: auto;
+    }
+
+    .card-inner {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      min-width: 300px;
+      max-width: 500px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      background: rgba(162, 155, 254, 0.15);
+      color: var(--accent-type);
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .card-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    .comp-section {
+      margin-bottom: 12px;
+    }
+
+    .comp-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .comp-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .comp-content {
+      font-size: 12px;
+      line-height: 1.6;
+      padding: 8px 10px;
+      background: var(--bg-surface);
+      border-radius: 6px;
+      border-left: 3px solid var(--accent-type);
+    }
+
+    .comp-content.term { border-left-color: var(--accent-term); }
+    .comp-content.transport { border-left-color: var(--accent-transport); }
+    .comp-content.elim { border-left-color: var(--accent-elim); }
+    .comp-content.refl { border-left-color: var(--accent-refl); }
+
+    .type-var { color: var(--accent-type); }
+    .term-var { color: var(--accent-term); }
+    .keyword { color: var(--accent-transport); }
+    .constructor { color: var(--accent-elim); }
+    .refl-sym { color: var(--accent-refl); }
+
+    .comp-chain {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .chain-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      padding: 4px 8px;
+      background: var(--bg-hover);
+      border-radius: 4px;
+    }
+
+    .chain-arrow {
+      color: var(--text-muted);
+    }
+
+    .chain-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-left: auto;
+      font-style: italic;
+    }
+
+    /* Legend */
+    .legend {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 11px;
+      z-index: 100;
+    }
+
+    .legend-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .legend-items {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .legend-label {
+      color: var(--text-secondary);
+    }
+
+    /* Info panel */
+    .info-panel {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      max-width: 320px;
+      z-index: 100;
+    }
+
+    .info-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .info-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .info-hint {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Stats */
+    .stats {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 11px;
+      z-index: 100;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 4px 0;
+    }
+
+    .stat-label { color: var(--text-muted); }
+    .stat-value { color: var(--text-primary); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <div class="info-panel">
+    <div class="info-title">Category-Theoretic Computation</div>
+    <div class="info-desc">
+      Witness identity morphisms (refl loops) shimmering over type nodes.
+      Each loop represents a proof of reflexivity in the identity type.
+    </div>
+    <div class="info-hint">
+      Hover over a node to see its computation unfold. Click to pin it open.
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-row">
+      <span class="stat-label">Nodes</span>
+      <span class="stat-value" id="nodeCount">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Refl loops</span>
+      <span class="stat-value" id="reflCount">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Transport steps</span>
+      <span class="stat-value" id="transportCount">0</span>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-title">Computation Types</div>
+    <div class="legend-items">
+      <div class="legend-item">
+        <div class="legend-dot" style="background: var(--accent-type)"></div>
+        <span class="legend-label">Type formation</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background: var(--accent-term)"></div>
+        <span class="legend-label">Term introduction</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background: var(--accent-refl)"></div>
+        <span class="legend-label">Reflexivity</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background: var(--accent-transport)"></div>
+        <span class="legend-label">Transport</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background: var(--accent-elim)"></div>
+        <span class="legend-label">Elimination</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Template for computation cards (will be cloned by JS) -->
+  <div class="computation-card" id="cardTemplate" style="display: none;">
+    <div class="card-inner">
+      <div class="card-header">
+        <div class="card-icon"></div>
+        <span class="card-title"></span>
+        <span class="card-subtitle"></span>
+      </div>
+      <div class="card-body"></div>
+    </div>
+  </div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// CATEGORY-THEORETIC COMPUTATION VISUALIZATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// High DPI support
+let dpr = window.devicePixelRatio || 1;
+let width, height;
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  width = window.innerWidth;
+  height = window.innerHeight;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TYPE THEORY DATA MODEL
+// ═══════════════════════════════════════════════════════════════════════════
+
+const colors = {
+  type: '#a29bfe',
+  term: '#7ee787',
+  refl: '#45b7d1',
+  transport: '#ff9bce',
+  elim: '#ffb574',
+  bg: '#08080c',
+  border: '#252535',
+  text: '#e8e8f0',
+  textMuted: '#606070'
+};
+
+// Category-theoretic computation nodes
+const computationGraph = {
+  nodes: [],
+  edges: []
+};
+
+// Types of computation steps
+const COMP_TYPES = {
+  TYPE_FORM: 'type',      // Type formation: A type
+  TERM_INTRO: 'term',     // Term introduction: a : A
+  REFL: 'refl',           // Reflexivity: refl_a : a = a
+  TRANSPORT: 'transport', // Transport: transport p : P(a) -> P(b)
+  ELIM: 'elim',           // Elimination: J-eliminator
+  SUBST: 'subst',         // Substitution
+  APPLY: 'apply'          // Function application
+};
+
+// Generate extensive computation steps - dozens and hundreds of explicit steps
+function generateComputationSteps() {
+  const steps = [];
+  const greek = ['α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'ι', 'κ'];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 1: BASE TYPES AND UNIVERSES
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Universe hierarchy
+  for (let i = 0; i < 4; i++) {
+    steps.push({
+      id: `U${i}`, type: COMP_TYPES.TYPE_FORM, name: `U${i}`,
+      typeExpr: i === 0 ? 'Universe' : `U${i-1}`,
+      definition: `U${i} : ${i === 0 ? 'Universe' : `U${i-1}`}`,
+      hasReflLoop: true
+    });
+  }
+
+  // Base types
+  const baseTypes = ['A', 'B', 'C', 'D', 'E'];
+  baseTypes.forEach(t => {
+    steps.push({
+      id: t, type: COMP_TYPES.TYPE_FORM, name: t,
+      typeExpr: 'U₀', definition: `${t} : U₀`
+    });
+  });
+
+  // Dependent types
+  steps.push({
+    id: 'P', type: COMP_TYPES.TYPE_FORM, name: 'P',
+    typeExpr: 'A → U₀', definition: 'P : A → U₀',
+    chain: ['A : U₀', '─────────', 'P : A → U₀']
+  });
+  steps.push({
+    id: 'Q', type: COMP_TYPES.TYPE_FORM, name: 'Q',
+    typeExpr: 'B → U₀', definition: 'Q : B → U₀'
+  });
+  steps.push({
+    id: 'R', type: COMP_TYPES.TYPE_FORM, name: 'R',
+    typeExpr: '(x:A) → P(x) → U₀', definition: 'R : Π(x:A). P(x) → U₀'
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 2: ELEMENTS AND TERMS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Elements of A
+  for (let i = 0; i < 6; i++) {
+    const name = String.fromCharCode(97 + i); // a, b, c, d, e, f
+    steps.push({
+      id: name, type: COMP_TYPES.TERM_INTRO, name: name,
+      typeExpr: 'A', definition: `${name} : A`
+    });
+  }
+
+  // Elements of dependent types
+  for (let i = 0; i < 4; i++) {
+    const base = String.fromCharCode(97 + i);
+    steps.push({
+      id: `p${base}`, type: COMP_TYPES.TERM_INTRO, name: `p${base}`,
+      typeExpr: `P(${base})`, definition: `p${base} : P(${base})`,
+      chain: [`${base} : A`, 'P : A → U₀', '─────────', `p${base} : P(${base})`]
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 3: PATHS AND IDENTITY TYPES
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Paths between consecutive elements
+  const pathPairs = [['a','b'], ['b','c'], ['c','d'], ['d','e'], ['e','f']];
+  pathPairs.forEach(([x, y], i) => {
+    steps.push({
+      id: `path_${x}${y}`, type: COMP_TYPES.TERM_INTRO, name: `p_${x}${y}`,
+      typeExpr: `${x} =_A ${y}`, definition: `p_${x}${y} : ${x} =_A ${y}`
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 4: REFLEXIVITY PROOFS (with shimmering loops)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  for (let i = 0; i < 6; i++) {
+    const name = String.fromCharCode(97 + i);
+    steps.push({
+      id: `refl_${name}`, type: COMP_TYPES.REFL, name: `refl_${name}`,
+      typeExpr: `${name} = ${name}`, definition: `refl : ${name} =_A ${name}`,
+      hasReflLoop: true,
+      chain: [`${name} : A`, '─────────', `refl_${name} : ${name} =_A ${name}`]
+    });
+  }
+
+  // Refl for dependent elements
+  for (let i = 0; i < 4; i++) {
+    const base = String.fromCharCode(97 + i);
+    steps.push({
+      id: `refl_p${base}`, type: COMP_TYPES.REFL, name: `refl_p${base}`,
+      typeExpr: `p${base} = p${base}`,
+      definition: `refl : p${base} =_{P(${base})} p${base}`,
+      hasReflLoop: true
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 5: PATH COMPOSITIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Compose consecutive paths
+  steps.push({
+    id: 'comp_abc', type: COMP_TYPES.APPLY, name: 'p_ab · p_bc',
+    typeExpr: 'a =_A c', definition: 'p_ab · p_bc : a =_A c',
+    chain: ['p_ab : a = b', 'p_bc : b = c', '─────────', 'p_ab · p_bc : a = c']
+  });
+
+  steps.push({
+    id: 'comp_abcd', type: COMP_TYPES.APPLY, name: '(p_ab · p_bc) · p_cd',
+    typeExpr: 'a =_A d', definition: '(p_ab · p_bc) · p_cd : a =_A d',
+    chain: ['p_ab · p_bc : a = c', 'p_cd : c = d', '─────────', '(p_ab · p_bc) · p_cd : a = d']
+  });
+
+  steps.push({
+    id: 'comp_all', type: COMP_TYPES.APPLY, name: 'p_ab···p_ef',
+    typeExpr: 'a =_A f', definition: 'p_ab · p_bc · p_cd · p_de · p_ef : a =_A f',
+    chain: [
+      'p_ab : a = b', 'p_bc : b = c', 'p_cd : c = d',
+      'p_de : d = e', 'p_ef : e = f', '─────────',
+      'p_ab · p_bc · p_cd · p_de · p_ef : a = f'
+    ]
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 6: TRANSPORT OPERATIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Transport along each path
+  pathPairs.forEach(([x, y]) => {
+    steps.push({
+      id: `tr_${x}${y}`, type: COMP_TYPES.TRANSPORT, name: `tr(p_${x}${y})`,
+      typeExpr: `P(${x}) → P(${y})`,
+      definition: `transport_P(p_${x}${y}) : P(${x}) → P(${y})`,
+      chain: [`p_${x}${y} : ${x} = ${y}`, 'P : A → U₀', '─────────', `tr(p_${x}${y}) : P(${x}) → P(${y})`]
+    });
+  });
+
+  // Transport along composed paths
+  steps.push({
+    id: 'tr_comp_abc', type: COMP_TYPES.TRANSPORT, name: 'tr(p_ab·p_bc)',
+    typeExpr: 'P(a) → P(c)', definition: 'tr(p_ab · p_bc) : P(a) → P(c)',
+    chain: ['p_ab · p_bc : a = c', 'P : A → U₀', '─────────', 'tr(p_ab · p_bc) : P(a) → P(c)']
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 7: TRANSPORT COMPOSITION PROOFS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // tr(p·q) = tr(q) ∘ tr(p)
+  steps.push({
+    id: 'tr_func_1', type: COMP_TYPES.APPLY, name: 'tr(p_bc) ∘ tr(p_ab)',
+    typeExpr: 'P(a) → P(c)',
+    definition: 'tr(p_bc) ∘ tr(p_ab) : P(a) → P(c)',
+    chain: ['tr(p_ab) : P(a) → P(b)', 'tr(p_bc) : P(b) → P(c)', '─────────', 'tr(p_bc) ∘ tr(p_ab) : P(a) → P(c)']
+  });
+
+  // Equality proof
+  steps.push({
+    id: 'tr_func_eq', type: COMP_TYPES.REFL, name: 'tr_func',
+    typeExpr: 'tr(p_ab·p_bc) = tr(p_bc)∘tr(p_ab)',
+    definition: 'functoriality: tr(p·q) = tr(q) ∘ tr(p)',
+    hasReflLoop: true,
+    chain: [
+      'tr(p_ab · p_bc) : P(a) → P(c)',
+      'tr(p_bc) ∘ tr(p_ab) : P(a) → P(c)',
+      '─────────────────────────────',
+      'by J-elim: tr(p_ab · p_bc) = tr(p_bc) ∘ tr(p_ab)'
+    ]
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 8: J-ELIMINATOR APPLICATIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // J for transport identity
+  steps.push({
+    id: 'J_tr_id', type: COMP_TYPES.ELIM, name: 'J[tr≡id]',
+    typeExpr: 'tr(refl) = id',
+    definition: 'J proves transport along refl is identity',
+    chain: [
+      'C(x,y,p) := tr_P(p) = id when p = refl',
+      'c(x) := refl : tr_P(refl_x) = id_{P(x)}',
+      '─────────────────────────────────',
+      'J(C, c, x, x, refl_x) : tr_P(refl_x) = id_{P(x)}'
+    ]
+  });
+
+  // J for path induction
+  steps.push({
+    id: 'J_path_ind', type: COMP_TYPES.ELIM, name: 'J[path-ind]',
+    typeExpr: '∀p:a=b. C(a,b,p)',
+    definition: 'J provides path induction principle',
+    chain: [
+      'C : Π(x,y:A). x=y → U₀',
+      'c : Π(x:A). C(x,x,refl_x)',
+      'a, b : A, p : a = b',
+      '─────────────────────────────────',
+      'J(C, c, a, b, p) : C(a, b, p)'
+    ]
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 9: HIGHER PATHS (paths between paths)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Associativity path
+  steps.push({
+    id: 'assoc', type: COMP_TYPES.TERM_INTRO, name: 'assoc',
+    typeExpr: '(p·q)·r = p·(q·r)',
+    definition: 'assoc : (p_ab·p_bc)·p_cd = p_ab·(p_bc·p_cd)',
+    chain: [
+      'p_ab : a = b', 'p_bc : b = c', 'p_cd : c = d',
+      '─────────────────────────────────',
+      'assoc : (p_ab · p_bc) · p_cd = p_ab · (p_bc · p_cd)'
+    ]
+  });
+
+  // Left unit
+  steps.push({
+    id: 'lu', type: COMP_TYPES.REFL, name: 'lu',
+    typeExpr: 'refl · p = p', definition: 'lu : refl_a · p_ab = p_ab',
+    hasReflLoop: true
+  });
+
+  // Right unit
+  steps.push({
+    id: 'ru', type: COMP_TYPES.REFL, name: 'ru',
+    typeExpr: 'p · refl = p', definition: 'ru : p_ab · refl_b = p_ab',
+    hasReflLoop: true
+  });
+
+  // Inverse paths
+  steps.push({
+    id: 'inv_ab', type: COMP_TYPES.TERM_INTRO, name: 'p_ab⁻¹',
+    typeExpr: 'b =_A a', definition: 'p_ab⁻¹ : b =_A a'
+  });
+
+  // Left inverse
+  steps.push({
+    id: 'linv', type: COMP_TYPES.REFL, name: 'linv',
+    typeExpr: 'p⁻¹ · p = refl', definition: 'linv : p_ab⁻¹ · p_ab = refl_a',
+    hasReflLoop: true
+  });
+
+  // Right inverse
+  steps.push({
+    id: 'rinv', type: COMP_TYPES.REFL, name: 'rinv',
+    typeExpr: 'p · p⁻¹ = refl', definition: 'rinv : p_ab · p_ab⁻¹ = refl_b',
+    hasReflLoop: true
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 10: APPLYATION OF FUNCTIONS TO PATHS (ap)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Function
+  steps.push({
+    id: 'f_AB', type: COMP_TYPES.TERM_INTRO, name: 'f',
+    typeExpr: 'A → B', definition: 'f : A → B'
+  });
+
+  // ap f
+  steps.push({
+    id: 'ap_f', type: COMP_TYPES.APPLY, name: 'ap f',
+    typeExpr: 'f(a) =_B f(b)',
+    definition: 'ap_f(p_ab) : f(a) =_B f(b)',
+    chain: ['f : A → B', 'p_ab : a =_A b', '─────────', 'ap_f(p_ab) : f(a) =_B f(b)']
+  });
+
+  // ap preserves composition
+  steps.push({
+    id: 'ap_comp', type: COMP_TYPES.REFL, name: 'ap-comp',
+    typeExpr: 'ap f (p·q) = ap f p · ap f q',
+    definition: 'ap_f(p_ab · p_bc) = ap_f(p_ab) · ap_f(p_bc)',
+    hasReflLoop: true
+  });
+
+  // ap on refl
+  steps.push({
+    id: 'ap_refl', type: COMP_TYPES.REFL, name: 'ap-refl',
+    typeExpr: 'ap f refl = refl',
+    definition: 'ap_f(refl_a) = refl_{f(a)}',
+    hasReflLoop: true
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 11: DEPENDENT APPLICATION (apd)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Dependent function
+  steps.push({
+    id: 'g_dep', type: COMP_TYPES.TERM_INTRO, name: 'g',
+    typeExpr: 'Π(x:A). P(x)', definition: 'g : Π(x:A). P(x)'
+  });
+
+  // apd
+  steps.push({
+    id: 'apd_g', type: COMP_TYPES.APPLY, name: 'apd g',
+    typeExpr: 'tr(p)(g(a)) =_{P(b)} g(b)',
+    definition: 'apd_g(p_ab) : tr_P(p_ab)(g(a)) =_{P(b)} g(b)',
+    chain: [
+      'g : Π(x:A). P(x)',
+      'p_ab : a =_A b',
+      '─────────────────────────────',
+      'apd_g(p_ab) : tr_P(p_ab)(g(a)) =_{P(b)} g(b)'
+    ]
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 12: ADDITIONAL COMPUTATION STEPS (to reach hundreds)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Generate more reflexivity nodes with loops
+  for (let i = 0; i < 20; i++) {
+    const id = `refl_gen_${i}`;
+    steps.push({
+      id, type: COMP_TYPES.REFL, name: `refl_${greek[i % 10]}${Math.floor(i/10)}`,
+      typeExpr: `x${i} = x${i}`, definition: `refl : x${i} = x${i}`,
+      hasReflLoop: true
+    });
+  }
+
+  // Generate transport chain computations
+  for (let i = 0; i < 15; i++) {
+    steps.push({
+      id: `tr_chain_${i}`, type: COMP_TYPES.TRANSPORT, name: `tr_${i}`,
+      typeExpr: `P_${i}(x) → P_${i}(y)`,
+      definition: `transport along path ${i}`,
+      chain: [`p_${i} : x = y`, `P_${i} : A → U₀`, '─────────', `tr_${i} : P_${i}(x) → P_${i}(y)`]
+    });
+  }
+
+  // Generate J-eliminator applications
+  for (let i = 0; i < 10; i++) {
+    steps.push({
+      id: `J_app_${i}`, type: COMP_TYPES.ELIM, name: `J_${i}`,
+      typeExpr: `C_${i}(a,b,p)`,
+      definition: `J-elimination step ${i}`,
+      chain: [
+        `C_${i} : dependent type`,
+        `c_${i} : base case at refl`,
+        '─────────────────────────────────',
+        `J(C_${i}, c_${i}, a, b, p) : C_${i}(a, b, p)`
+      ]
+    });
+  }
+
+  // Function composition paths
+  for (let i = 0; i < 8; i++) {
+    steps.push({
+      id: `fn_comp_${i}`, type: COMP_TYPES.APPLY, name: `f_${i} ∘ g_${i}`,
+      typeExpr: `A_${i} → C_${i}`,
+      definition: `function composition ${i}`
+    });
+  }
+
+  // Substitution lemmas
+  for (let i = 0; i < 12; i++) {
+    steps.push({
+      id: `subst_${i}`, type: COMP_TYPES.SUBST, name: `subst_${i}`,
+      typeExpr: `[x/t]P → [x/s]P`,
+      definition: `substitution along path ${i}`,
+      hasReflLoop: i % 3 === 0 // some with refl loops
+    });
+  }
+
+  return steps;
+}
+
+const sampleComputation = generateComputationSteps();
+
+// Generate edges to connect computation nodes
+function generateEdges() {
+  const edges = [];
+
+  // Universe hierarchy
+  edges.push(['U0', 'U1'], ['U1', 'U2'], ['U2', 'U3']);
+
+  // Base types from universe
+  ['A', 'B', 'C', 'D', 'E'].forEach(t => edges.push(['U0', t]));
+
+  // Dependent types
+  edges.push(['A', 'P'], ['B', 'Q'], ['A', 'R'], ['P', 'R']);
+
+  // Elements of A
+  for (let i = 0; i < 6; i++) {
+    const name = String.fromCharCode(97 + i);
+    edges.push(['A', name]);
+  }
+
+  // Dependent elements
+  for (let i = 0; i < 4; i++) {
+    const base = String.fromCharCode(97 + i);
+    edges.push([base, `p${base}`], ['P', `p${base}`]);
+  }
+
+  // Paths
+  const pathPairs = [['a','b'], ['b','c'], ['c','d'], ['d','e'], ['e','f']];
+  pathPairs.forEach(([x, y]) => {
+    edges.push([x, `path_${x}${y}`], [y, `path_${x}${y}`]);
+  });
+
+  // Reflexivity
+  for (let i = 0; i < 6; i++) {
+    const name = String.fromCharCode(97 + i);
+    edges.push([name, `refl_${name}`]);
+  }
+  for (let i = 0; i < 4; i++) {
+    const base = String.fromCharCode(97 + i);
+    edges.push([`p${base}`, `refl_p${base}`]);
+  }
+
+  // Path compositions
+  edges.push(['path_ab', 'comp_abc'], ['path_bc', 'comp_abc']);
+  edges.push(['comp_abc', 'comp_abcd'], ['path_cd', 'comp_abcd']);
+  edges.push(['comp_abcd', 'comp_all'], ['path_de', 'comp_all'], ['path_ef', 'comp_all']);
+
+  // Transport
+  pathPairs.forEach(([x, y]) => {
+    edges.push([`path_${x}${y}`, `tr_${x}${y}`], ['P', `tr_${x}${y}`]);
+  });
+  edges.push(['comp_abc', 'tr_comp_abc'], ['P', 'tr_comp_abc']);
+
+  // Transport composition
+  edges.push(['tr_ab', 'tr_func_1'], ['tr_bc', 'tr_func_1']);
+  edges.push(['tr_comp_abc', 'tr_func_eq'], ['tr_func_1', 'tr_func_eq']);
+
+  // J-eliminator
+  edges.push(['tr_func_eq', 'J_tr_id']);
+  edges.push(['P', 'J_path_ind'], ['A', 'J_path_ind']);
+
+  // Higher paths
+  edges.push(['comp_abc', 'assoc'], ['path_cd', 'assoc']);
+  edges.push(['refl_a', 'lu'], ['path_ab', 'lu']);
+  edges.push(['path_ab', 'ru'], ['refl_b', 'ru']);
+  edges.push(['path_ab', 'inv_ab']);
+  edges.push(['inv_ab', 'linv'], ['path_ab', 'linv'], ['refl_a', 'linv']);
+  edges.push(['path_ab', 'rinv'], ['inv_ab', 'rinv'], ['refl_b', 'rinv']);
+
+  // ap
+  edges.push(['A', 'f_AB'], ['B', 'f_AB']);
+  edges.push(['f_AB', 'ap_f'], ['path_ab', 'ap_f']);
+  edges.push(['ap_f', 'ap_comp']);
+  edges.push(['refl_a', 'ap_refl'], ['f_AB', 'ap_refl']);
+
+  // apd
+  edges.push(['P', 'g_dep'], ['A', 'g_dep']);
+  edges.push(['g_dep', 'apd_g'], ['path_ab', 'apd_g'], ['tr_ab', 'apd_g']);
+
+  // Connect generated refl nodes
+  for (let i = 0; i < 20; i++) {
+    if (i > 0) edges.push([`refl_gen_${i-1}`, `refl_gen_${i}`]);
+  }
+  edges.push(['U0', 'refl_gen_0']);
+
+  // Connect transport chains
+  for (let i = 0; i < 15; i++) {
+    edges.push(['P', `tr_chain_${i}`]);
+    if (i > 0) edges.push([`tr_chain_${i-1}`, `tr_chain_${i}`]);
+  }
+
+  // Connect J applications
+  edges.push(['J_tr_id', 'J_app_0'], ['J_path_ind', 'J_app_0']);
+  for (let i = 1; i < 10; i++) {
+    edges.push([`J_app_${i-1}`, `J_app_${i}`]);
+  }
+
+  // Function compositions
+  for (let i = 0; i < 8; i++) {
+    edges.push(['f_AB', `fn_comp_${i}`]);
+    if (i > 0) edges.push([`fn_comp_${i-1}`, `fn_comp_${i}`]);
+  }
+
+  // Substitutions
+  for (let i = 0; i < 12; i++) {
+    edges.push(['P', `subst_${i}`]);
+    if (i > 0) edges.push([`subst_${i-1}`, `subst_${i}`]);
+  }
+
+  return edges;
+}
+
+const sampleEdges = generateEdges();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LAYOUT - FORCE-DIRECTED WITH HIERARCHY
+// ═══════════════════════════════════════════════════════════════════════════
+
+class Node {
+  constructor(data, x, y) {
+    this.id = data.id;
+    this.data = data;
+    this.x = x;
+    this.y = y;
+    this.vx = 0;
+    this.vy = 0;
+    this.radius = this.computeRadius();
+
+    // Refl loop animation state
+    this.reflPhase = Math.random() * Math.PI * 2;
+    this.reflAmplitude = data.hasReflLoop ? 8 + Math.random() * 4 : 0;
+    this.reflFreq = 2 + Math.random();
+
+    // Hover state
+    this.hoverProgress = 0;
+    this.isHovered = false;
+    this.isPinned = false;
+  }
+
+  computeRadius() {
+    switch (this.data.type) {
+      case COMP_TYPES.TYPE_FORM: return 20;
+      case COMP_TYPES.TERM_INTRO: return 16;
+      case COMP_TYPES.REFL: return 14;
+      case COMP_TYPES.TRANSPORT: return 18;
+      case COMP_TYPES.ELIM: return 22;
+      case COMP_TYPES.APPLY: return 17;
+      default: return 15;
+    }
+  }
+
+  getColor() {
+    return colors[this.data.type] || colors.text;
+  }
+}
+
+// Initialize nodes with hierarchical layout
+function initializeGraph() {
+  const cx = width / 2;
+  const cy = height / 2;
+
+  // Group by type for initial positioning
+  const groups = {};
+  sampleComputation.forEach((comp, i) => {
+    if (!groups[comp.type]) groups[comp.type] = [];
+    groups[comp.type].push(comp);
+  });
+
+  // Position in concentric rings by type
+  const typeOrder = [COMP_TYPES.TYPE_FORM, COMP_TYPES.TERM_INTRO, COMP_TYPES.REFL,
+                     COMP_TYPES.TRANSPORT, COMP_TYPES.APPLY, COMP_TYPES.ELIM];
+
+  let nodeIndex = 0;
+  typeOrder.forEach((type, ringIdx) => {
+    const ring = groups[type] || [];
+    const radius = 80 + ringIdx * 100;
+    ring.forEach((comp, i) => {
+      const angle = (i / ring.length) * Math.PI * 2 - Math.PI / 2;
+      const x = cx + Math.cos(angle) * radius + (Math.random() - 0.5) * 30;
+      const y = cy + Math.sin(angle) * radius + (Math.random() - 0.5) * 30;
+      computationGraph.nodes.push(new Node(comp, x, y));
+      nodeIndex++;
+    });
+  });
+
+  // Build edge list
+  const nodeMap = new Map(computationGraph.nodes.map(n => [n.id, n]));
+  sampleEdges.forEach(([from, to]) => {
+    const fromNode = nodeMap.get(from);
+    const toNode = nodeMap.get(to);
+    if (fromNode && toNode) {
+      computationGraph.edges.push({ from: fromNode, to: toNode });
+    }
+  });
+
+  // Update stats
+  document.getElementById('nodeCount').textContent = computationGraph.nodes.length;
+  document.getElementById('reflCount').textContent =
+    computationGraph.nodes.filter(n => n.data.hasReflLoop).length;
+  document.getElementById('transportCount').textContent =
+    computationGraph.nodes.filter(n => n.data.type === COMP_TYPES.TRANSPORT).length;
+}
+
+// Force-directed simulation
+function simulateForces() {
+  const nodes = computationGraph.nodes;
+  const edges = computationGraph.edges;
+
+  const repulsion = 2000;
+  const attraction = 0.01;
+  const damping = 0.9;
+  const centerForce = 0.002;
+
+  // Reset velocities
+  nodes.forEach(n => {
+    n.vx *= damping;
+    n.vy *= damping;
+  });
+
+  // Repulsion between all nodes
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const dx = nodes[j].x - nodes[i].x;
+      const dy = nodes[j].y - nodes[i].y;
+      const dist = Math.sqrt(dx * dx + dy * dy) + 1;
+      const force = repulsion / (dist * dist);
+      const fx = (dx / dist) * force;
+      const fy = (dy / dist) * force;
+      nodes[i].vx -= fx;
+      nodes[i].vy -= fy;
+      nodes[j].vx += fx;
+      nodes[j].vy += fy;
+    }
+  }
+
+  // Attraction along edges
+  edges.forEach(({ from, to }) => {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const force = dist * attraction;
+    const fx = (dx / dist) * force;
+    const fy = (dy / dist) * force;
+    from.vx += fx;
+    from.vy += fy;
+    to.vx -= fx;
+    to.vy -= fy;
+  });
+
+  // Center force
+  const cx = width / 2;
+  const cy = height / 2;
+  nodes.forEach(n => {
+    n.vx += (cx - n.x) * centerForce;
+    n.vy += (cy - n.y) * centerForce;
+  });
+
+  // Apply velocities
+  nodes.forEach(n => {
+    n.x += n.vx;
+    n.y += n.vy;
+    // Boundary
+    n.x = Math.max(100, Math.min(width - 100, n.x));
+    n.y = Math.max(100, Math.min(height - 100, n.y));
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════════════════════════
+
+let time = 0;
+
+function drawEdge(from, to) {
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.strokeStyle = colors.border;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function drawReflLoop(node, t) {
+  if (!node.data.hasReflLoop) return;
+
+  const phase = node.reflPhase + t * node.reflFreq;
+  const amp = node.reflAmplitude;
+
+  // Shimmering loop above the node
+  const loopRadius = node.radius + 6 + Math.sin(phase * 2) * 2;
+  const shimmer = Math.sin(phase * 3) * 0.3 + 0.7;
+
+  ctx.save();
+  ctx.translate(node.x, node.y);
+
+  // Multiple overlapping loops for shimmer effect
+  for (let i = 0; i < 3; i++) {
+    const offset = i * 0.2;
+    const loopPhase = phase + offset;
+
+    ctx.beginPath();
+    ctx.ellipse(
+      0, -loopRadius - 5,
+      loopRadius * 0.6 + Math.sin(loopPhase) * 3,
+      loopRadius * 0.3 + Math.cos(loopPhase * 1.5) * 2,
+      Math.sin(loopPhase * 0.5) * 0.3,
+      0, Math.PI * 2
+    );
+
+    ctx.strokeStyle = `rgba(69, 183, 209, ${shimmer * (1 - i * 0.25)})`;
+    ctx.lineWidth = 2 - i * 0.5;
+    ctx.stroke();
+  }
+
+  // Small arrow indicating direction
+  const arrowAngle = phase * 2;
+  const arrowX = Math.cos(arrowAngle) * loopRadius * 0.6;
+  const arrowY = -loopRadius - 5 + Math.sin(arrowAngle) * loopRadius * 0.3;
+
+  ctx.beginPath();
+  ctx.arc(arrowX, arrowY, 2, 0, Math.PI * 2);
+  ctx.fillStyle = colors.refl;
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawNode(node, t) {
+  const color = node.getColor();
+  const isHighlighted = node.isHovered || node.isPinned;
+
+  // Glow effect when highlighted
+  if (isHighlighted) {
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, node.radius + 8, 0, Math.PI * 2);
+    const gradient = ctx.createRadialGradient(
+      node.x, node.y, node.radius,
+      node.x, node.y, node.radius + 15
+    );
+    gradient.addColorStop(0, color + '40');
+    gradient.addColorStop(1, 'transparent');
+    ctx.fillStyle = gradient;
+    ctx.fill();
+  }
+
+  // Main circle
+  ctx.beginPath();
+  ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+
+  // Fill gradient
+  const gradient = ctx.createRadialGradient(
+    node.x - node.radius * 0.3, node.y - node.radius * 0.3, 0,
+    node.x, node.y, node.radius
+  );
+  gradient.addColorStop(0, color + '40');
+  gradient.addColorStop(1, color + '15');
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  // Border
+  ctx.strokeStyle = color;
+  ctx.lineWidth = isHighlighted ? 2.5 : 1.5;
+  ctx.stroke();
+
+  // Label
+  ctx.font = '11px "SF Mono", Consolas, monospace';
+  ctx.fillStyle = colors.text;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(node.data.name, node.x, node.y);
+
+  // Draw refl loop if applicable
+  drawReflLoop(node, t);
+}
+
+function render() {
+  ctx.fillStyle = colors.bg;
+  ctx.fillRect(0, 0, width, height);
+
+  // Run physics
+  simulateForces();
+
+  // Update time
+  time += 0.016;
+
+  // Draw edges
+  computationGraph.edges.forEach(({ from, to }) => drawEdge(from, to));
+
+  // Draw nodes
+  computationGraph.nodes.forEach(node => drawNode(node, time));
+
+  // Update hover states
+  computationGraph.nodes.forEach(node => {
+    if (node.isHovered || node.isPinned) {
+      node.hoverProgress = Math.min(1, node.hoverProgress + 0.08);
+    } else {
+      node.hoverProgress = Math.max(0, node.hoverProgress - 0.05);
+    }
+  });
+
+  requestAnimationFrame(render);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INTERACTION - HOVER TO EXPAND
+// ═══════════════════════════════════════════════════════════════════════════
+
+let hoveredNode = null;
+let pinnedCard = null;
+let activeCard = null;
+
+function findNodeAt(x, y) {
+  for (let i = computationGraph.nodes.length - 1; i >= 0; i--) {
+    const node = computationGraph.nodes[i];
+    const dx = x - node.x;
+    const dy = y - node.y;
+    if (dx * dx + dy * dy < node.radius * node.radius * 1.5) {
+      return node;
+    }
+  }
+  return null;
+}
+
+function createCard(node) {
+  const card = document.createElement('div');
+  card.className = 'computation-card';
+
+  const typeLabel = {
+    [COMP_TYPES.TYPE_FORM]: 'Type Formation',
+    [COMP_TYPES.TERM_INTRO]: 'Term Introduction',
+    [COMP_TYPES.REFL]: 'Reflexivity',
+    [COMP_TYPES.TRANSPORT]: 'Transport',
+    [COMP_TYPES.ELIM]: 'Elimination',
+    [COMP_TYPES.APPLY]: 'Application',
+    [COMP_TYPES.SUBST]: 'Substitution'
+  };
+
+  const typeIcon = {
+    [COMP_TYPES.TYPE_FORM]: '∀',
+    [COMP_TYPES.TERM_INTRO]: 'λ',
+    [COMP_TYPES.REFL]: '≡',
+    [COMP_TYPES.TRANSPORT]: '→',
+    [COMP_TYPES.ELIM]: 'J',
+    [COMP_TYPES.APPLY]: '∘',
+    [COMP_TYPES.SUBST]: '⊢'
+  };
+
+  let bodyHTML = `
+    <div class="comp-section">
+      <div class="comp-label">Type</div>
+      <div class="comp-content type">
+        <span class="type-var">${escapeHtml(node.data.typeExpr)}</span>
+      </div>
+    </div>
+    <div class="comp-section">
+      <div class="comp-label">Definition</div>
+      <div class="comp-content ${node.data.type}">
+        ${formatDefinition(node.data.definition)}
+      </div>
+    </div>
+  `;
+
+  if (node.data.chain) {
+    bodyHTML += `
+      <div class="comp-section">
+        <div class="comp-label">Derivation</div>
+        <div class="comp-chain">
+          ${node.data.chain.map((step, i) => {
+            const isRule = step.includes('───');
+            return `<div class="chain-step${isRule ? ' chain-rule' : ''}">
+              ${isRule ? '<span style="color: var(--text-muted)">────────────</span>' : formatDefinition(step)}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  card.innerHTML = `
+    <div class="card-inner">
+      <div class="card-header">
+        <div class="card-icon">${typeIcon[node.data.type] || '·'}</div>
+        <span class="card-title">${escapeHtml(node.data.name)}</span>
+        <span class="card-subtitle">${typeLabel[node.data.type] || 'Computation'}</span>
+      </div>
+      <div class="card-body">${bodyHTML}</div>
+    </div>
+  `;
+
+  document.body.appendChild(card);
+  return card;
+}
+
+function formatDefinition(def) {
+  return escapeHtml(def)
+    .replace(/(\b[A-Z]\b)/g, '<span class="type-var">$1</span>')
+    .replace(/(\b[a-z]\b)(?=\s*:)/g, '<span class="term-var">$1</span>')
+    .replace(/(refl|transport|tr_P|id)/g, '<span class="keyword">$1</span>')
+    .replace(/(J-elim|J\()/g, '<span class="constructor">$1</span>');
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function showCard(node) {
+  if (activeCard && !pinnedCard) {
+    activeCard.remove();
+  }
+
+  if (pinnedCard === node) return;
+
+  const card = createCard(node);
+
+  // Position card near node
+  const padding = 20;
+  let x = node.x + node.radius + padding;
+  let y = node.y - 50;
+
+  // Keep in bounds
+  const cardWidth = 350;
+  const cardHeight = 300;
+  if (x + cardWidth > width - padding) {
+    x = node.x - cardWidth - node.radius - padding;
+  }
+  if (y < padding) y = padding;
+  if (y + cardHeight > height - padding) {
+    y = height - cardHeight - padding;
+  }
+
+  card.style.left = x + 'px';
+  card.style.top = y + 'px';
+
+  // Animate in
+  requestAnimationFrame(() => {
+    card.classList.add('visible');
+  });
+
+  activeCard = card;
+}
+
+function hideCard() {
+  if (activeCard && !pinnedCard) {
+    activeCard.classList.remove('visible');
+    setTimeout(() => {
+      if (activeCard && !pinnedCard) {
+        activeCard.remove();
+        activeCard = null;
+      }
+    }, 300);
+  }
+}
+
+// Mouse events
+let hoverTimeout = null;
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const node = findNodeAt(x, y);
+
+  if (node !== hoveredNode) {
+    // Unhover previous
+    if (hoveredNode) {
+      hoveredNode.isHovered = false;
+      clearTimeout(hoverTimeout);
+      if (!pinnedCard) hideCard();
+    }
+
+    hoveredNode = node;
+
+    if (node) {
+      node.isHovered = true;
+      canvas.style.cursor = 'pointer';
+
+      // Delay before showing card
+      hoverTimeout = setTimeout(() => {
+        if (hoveredNode === node) {
+          showCard(node);
+        }
+      }, 400);
+    } else {
+      canvas.style.cursor = 'default';
+    }
+  }
+});
+
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const node = findNodeAt(x, y);
+
+  if (node) {
+    // Toggle pin
+    if (pinnedCard === node) {
+      // Unpin
+      pinnedCard.isPinned = false;
+      pinnedCard = null;
+      if (activeCard) {
+        activeCard.classList.remove('clicked');
+        hideCard();
+      }
+    } else {
+      // Unpin previous
+      if (pinnedCard) {
+        pinnedCard.isPinned = false;
+      }
+
+      // Pin new
+      node.isPinned = true;
+      pinnedCard = node;
+      showCard(node);
+      if (activeCard) {
+        activeCard.classList.add('clicked');
+      }
+    }
+  } else if (pinnedCard) {
+    // Click outside - unpin
+    pinnedCard.isPinned = false;
+    pinnedCard = null;
+    if (activeCard) {
+      activeCard.classList.remove('clicked');
+      hideCard();
+    }
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  if (hoveredNode) {
+    hoveredNode.isHovered = false;
+    hoveredNode = null;
+    clearTimeout(hoverTimeout);
+    if (!pinnedCard) hideCard();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INITIALIZATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+initializeGraph();
+render();
+
+console.log('Category-theoretic computation visualization initialized');
+console.log(`${computationGraph.nodes.length} nodes, ${computationGraph.edges.length} edges`);
+</script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+umbra.hyperstitious.art {
+    root * /home/uprootiny/plates-live/umbra
+    try_files {path} /index.html
+    encode gzip
+    file_server
+}
+
+plates.raindesk.dev {
+    root * /home/uprootiny/plates-live
+    handle_path /umbra* {
+        root * /home/uprootiny/plates-live/umbra
+        try_files {path} /index.html
+        file_server
+    }
+    file_server
+}
+
+plates.hyperstitious.art {
+    root * /home/uprootiny/plates-live
+    file_server
+}
+
+(raindesk_proxy) {
+    reverse_proxy 173.212.203.211:80
+}
+
+(hyper_proxy) {
+    reverse_proxy 173.212.203.211:80
+}
+
+(dissemblage_proxy) {
+    reverse_proxy 5.189.145.105:80
+}
+
+# Raindesk + Raindeck
+architecture.raindesk.dev {
+    import raindesk_proxy
+}
+archive.raindesk.dev {
+    import raindesk_proxy
+}
+axiom.raindesk.dev {
+    import raindesk_proxy
+}
+commands.raindesk.dev {
+    import raindesk_proxy
+}
+corpora.raindesk.dev {
+    import raindesk_proxy
+}
+cyberspace.raindesk.dev {
+    import raindesk_proxy
+}
+dues.raindesk.dev {
+    import raindesk_proxy
+}
+etudes.raindesk.dev {
+    import raindesk_proxy
+}
+experiments.raindesk.dev {
+    import raindesk_proxy
+}
+festival.raindesk.dev {
+    import raindesk_proxy
+}
+gallery.raindesk.dev {
+    import raindesk_proxy
+}
+lecture.raindesk.dev {
+    import raindesk_proxy
+}
+ledger.raindesk.dev {
+    import raindesk_proxy
+}
+maori.raindesk.dev {
+    import raindesk_proxy
+}
+metaculus.raindesk.dev {
+    import raindesk_proxy
+}
+mysterium.raindesk.dev {
+    import raindesk_proxy
+}
+naturetrip.raindesk.dev {
+    import raindesk_proxy
+}
+neume.raindesk.dev {
+    import raindesk_proxy
+}
+observatory.raindesk.dev {
+    import raindesk_proxy
+}
+raindeck.dev {
+    import raindesk_proxy
+}
+raindesk.dev {
+    import raindesk_proxy
+}
+status.raindesk.dev {
+    import raindesk_proxy
+}
+theater.raindesk.dev {
+    import raindesk_proxy
+}
+trace.raindesk.dev {
+    import raindesk_proxy
+}
+war-room.raindesk.dev {
+    import raindesk_proxy
+}
+www.raindeck.dev {
+    import raindesk_proxy
+}
+www.raindesk.dev {
+    import raindesk_proxy
+}
+
+# Hyperstitious family
+hyperstitious.art {
+    import hyper_proxy
+}
+ceremonies.hyperstitious.org {
+    import hyper_proxy
+}
+corpora.hyperstitious.org {
+    import hyper_proxy
+}
+drops.hyperstitious.org {
+    import hyper_proxy
+}
+etudes.hyperstitious.org {
+    import hyper_proxy
+}
+ghost.hyperstitious.art {
+    import hyper_proxy
+}
+hyle.hyperstitious.org {
+    import hyper_proxy
+}
+hyperstitious.org {
+    import hyper_proxy
+}
+innie-compass.hyperstitious.art {
+    import hyper_proxy
+}
+innie-compass.hyperstitious.org {
+    import hyper_proxy
+}
+portfolio.hyperstitious.org {
+    import hyper_proxy
+}
+stories.hyperstitious.org {
+    import hyper_proxy
+}
+www.hyperstitious.org {
+    import hyper_proxy
+}
+hyle.lol {
+    import hyper_proxy
+}
+
+# Dissemblage family
+dissemblage.art {
+    import dissemblage_proxy
+}
+compass.dissemblage.art {
+    import dissemblage_proxy
+}
+fin-ml.dissemblage.art {
+    import dissemblage_proxy
+}
+fin.dissemblage.art {
+    import dissemblage_proxy
+}
+finml-lab.dissemblage.art {
+    import dissemblage_proxy
+}
+hyq-strategy.dissemblage.art {
+    import dissemblage_proxy
+}
+innie.dissemblage.art {
+    import dissemblage_proxy
+}
+lemniscate.dissemblage.art {
+    import dissemblage_proxy
+}
+
+# Pali Reader - catches any hostname on port 9999
+:9999 {
+    root * /home/uprootiny/Shevat/suttas
+    file_server
+    encode gzip zstd
+
+    header {
+        Access-Control-Allow-Origin *
+        X-Content-Type-Options nosniff
+    }
+
+    try_files {path} /index.html
+}

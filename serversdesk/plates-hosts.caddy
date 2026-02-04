@@ -1,0 +1,9 @@
+plates.raindesk.dev {
+    root * /home/uprootiny/plates-live
+    file_server
+}
+
+plates.hyperstitious.art {
+    root * /home/uprootiny/plates-live
+    file_server
+}

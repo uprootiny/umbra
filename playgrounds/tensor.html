@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tensor Playground - Einsum & Contractions</title>
+  <style>
+:root {
+  --bg: #0a0c10;
+  --surface: #12151a;
+  --border: rgba(255,255,255,0.1);
+  --text: #e8e8ec;
+  --dim: #808088;
+  --accent: #ff9bce;
+  --blue: #6eb5ff;
+  --green: #7ee787;
+  --orange: #ffb574;
+  --purple: #d2a8ff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 14px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+header h1 {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+header .subtitle {
+  color: var(--dim);
+  font-size: 13px;
+}
+
+.container {
+  display: grid;
+  grid-template-columns: 280px 1fr 320px;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Left panel - tensor palette */
+.palette {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.palette h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+  margin-bottom: 12px;
+}
+
+.tensor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.tensor-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: grab;
+  transition: all 0.15s;
+}
+
+.tensor-item:hover {
+  border-color: var(--accent);
+}
+
+.tensor-item.dragging {
+  opacity: 0.5;
+}
+
+.tensor-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tensor-shape {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.tensor-indices {
+  font-size: 12px;
+  color: var(--purple);
+  margin-top: 4px;
+}
+
+.add-tensor {
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  color: var(--dim);
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+}
+
+.add-tensor:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Center - canvas */
+.canvas-area {
+  position: relative;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+#canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* Nodes on canvas */
+.node {
+  position: absolute;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  cursor: move;
+  user-select: none;
+  min-width: 80px;
+  text-align: center;
+}
+
+.node.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px rgba(255,155,206,0.3);
+}
+
+.node .name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.node .indices {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.index-port {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--purple);
+  cursor: crosshair;
+}
+
+.index-port:hover {
+  background: var(--purple);
+  color: var(--bg);
+}
+
+.index-port.connected {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--bg);
+}
+
+/* Right panel - einsum output */
+.output {
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.output h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+}
+
+.einsum-display {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: inherit;
+}
+
+.einsum-code {
+  color: var(--green);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.result-shape {
+  margin-top: 8px;
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.patterns {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pattern-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.pattern-btn:hover {
+  border-color: var(--blue);
+}
+
+.pattern-btn .name {
+  color: var(--blue);
+  margin-bottom: 2px;
+}
+
+.pattern-btn .code {
+  color: var(--dim);
+  font-size: 11px;
+}
+
+/* SVG for connections */
+.connections {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.connection {
+  stroke: var(--green);
+  stroke-width: 2;
+  fill: none;
+}
+
+.connection.preview {
+  stroke: var(--purple);
+  stroke-dasharray: 5,5;
+}
+
+/* Modal for adding tensors */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.8);
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal.visible {
+  display: flex;
+}
+
+.modal-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: 360px;
+}
+
+.modal h3 {
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.form-group input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.modal-actions button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.btn-cancel {
+  background: var(--bg);
+  color: var(--dim);
+  border: 1px solid var(--border);
+}
+
+.btn-add {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* Instructions */
+.instructions {
+  padding: 12px;
+  background: rgba(110,181,255,0.1);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--blue);
+  line-height: 1.5;
+}
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Tensor Playground</h1>
+  <span class="subtitle">Einsum & Index Contractions</span>
+</header>
+
+<div class="container">
+  <aside class="palette">
+    <h2>Tensors</h2>
+    <div class="tensor-list" id="tensorList">
+      <!-- Populated by JS -->
+    </div>
+    <button class="add-tensor" id="addTensorBtn">+ Add Tensor</button>
+
+    <h2 style="margin-top: 24px;">Instructions</h2>
+    <div class="instructions">
+      <p>1. Drag tensors onto the canvas</p>
+      <p>2. Connect matching indices to contract</p>
+      <p>3. See the einsum expression update live</p>
+      <p>4. Use patterns for common operations</p>
+    </div>
+  </aside>
+
+  <main class="canvas-area">
+    <svg class="connections" id="connections"></svg>
+    <div id="canvas"></div>
+  </main>
+
+  <aside class="output">
+    <h2>Einsum Expression</h2>
+    <div class="einsum-display">
+      <div class="einsum-code" id="einsumCode">np.einsum('', )</div>
+      <div class="result-shape" id="resultShape">Result: ()</div>
+    </div>
+
+    <h2>Common Patterns</h2>
+    <div class="patterns" id="patterns">
+      <!-- Populated by JS -->
+    </div>
+
+    <h2>Index Legend</h2>
+    <div class="einsum-display">
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px;">
+        <span><span style="color: var(--purple);">i</span> = batch</span>
+        <span><span style="color: var(--purple);">j</span> = row</span>
+        <span><span style="color: var(--purple);">k</span> = col</span>
+        <span><span style="color: var(--purple);">l</span> = channel</span>
+        <span><span style="color: var(--purple);">m,n</span> = free</span>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- Add Tensor Modal -->
+<div class="modal" id="addModal">
+  <div class="modal-content">
+    <h3>Add Tensor</h3>
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="tensorName" placeholder="A, B, X, weights...">
+    </div>
+    <div class="form-group">
+      <label>Shape (comma-separated)</label>
+      <input type="text" id="tensorShape" placeholder="3, 4, 5">
+    </div>
+    <div class="form-group">
+      <label>Indices (one per dimension)</label>
+      <input type="text" id="tensorIndices" placeholder="i, j, k">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="cancelBtn">Cancel</button>
+      <button class="btn-add" id="confirmAddBtn">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════
+
+const state = {
+  tensors: [
+    { id: 'A', name: 'A', shape: [3, 4], indices: ['i', 'j'] },
+    { id: 'B', name: 'B', shape: [4, 5], indices: ['j', 'k'] },
+    { id: 'C', name: 'C', shape: [5, 3], indices: ['k', 'i'] },
+    { id: 'v', name: 'v', shape: [4], indices: ['j'] },
+  ],
+  canvasNodes: [],  // { id, tensorId, x, y }
+  connections: [],  // { from: {nodeId, indexPos}, to: {nodeId, indexPos} }
+  dragging: null,
+  connecting: null,
+  nextId: 1
+};
+
+const patterns = [
+  { name: 'Matrix Multiply', code: "einsum('ij,jk->ik', A, B)", setup: ['A:ij', 'B:jk'] },
+  { name: 'Batch MatMul', code: "einsum('bij,bjk->bik', A, B)", setup: ['A:bij', 'B:bjk'] },
+  { name: 'Dot Product', code: "einsum('i,i->', a, b)", setup: ['a:i', 'b:i'] },
+  { name: 'Outer Product', code: "einsum('i,j->ij', a, b)", setup: ['a:i', 'b:j'] },
+  { name: 'Trace', code: "einsum('ii->', A)", setup: ['A:ii'] },
+  { name: 'Transpose', code: "einsum('ij->ji', A)", setup: ['A:ij'] },
+  { name: 'Sum over axis', code: "einsum('ij->i', A)", setup: ['A:ij'] },
+  { name: 'Attention', code: "einsum('bqk,bkv->bqv', attn, V)", setup: ['attn:bqk', 'V:bkv'] },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderTensorList() {
+  const list = document.getElementById('tensorList');
+  list.innerHTML = state.tensors.map(t => `
+    <div class="tensor-item" draggable="true" data-id="${t.id}">
+      <div class="tensor-name">${t.name}</div>
+      <div class="tensor-shape">shape: (${t.shape.join(', ')})</div>
+      <div class="tensor-indices">indices: ${t.indices.join(', ')}</div>
+    </div>
+  `).join('');
+
+  // Add drag handlers
+  list.querySelectorAll('.tensor-item').forEach(el => {
+    el.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('tensorId', el.dataset.id);
+      el.classList.add('dragging');
+    });
+    el.addEventListener('dragend', e => {
+      el.classList.remove('dragging');
+    });
+  });
+}
+
+function renderPatterns() {
+  const container = document.getElementById('patterns');
+  container.innerHTML = patterns.map((p, i) => `
+    <button class="pattern-btn" data-index="${i}">
+      <div class="name">${p.name}</div>
+      <div class="code">${p.code}</div>
+    </button>
+  `).join('');
+
+  container.querySelectorAll('.pattern-btn').forEach(btn => {
+    btn.onclick = () => loadPattern(parseInt(btn.dataset.index));
+  });
+}
+
+function renderCanvasNodes() {
+  const canvas = document.getElementById('canvas');
+
+  // Remove old nodes
+  canvas.querySelectorAll('.node').forEach(n => n.remove());
+
+  // Add current nodes
+  state.canvasNodes.forEach(node => {
+    const tensor = state.tensors.find(t => t.id === node.tensorId);
+    if (!tensor) return;
+
+    const el = document.createElement('div');
+    el.className = 'node';
+    el.dataset.nodeId = node.id;
+    el.style.left = node.x + 'px';
+    el.style.top = node.y + 'px';
+
+    el.innerHTML = `
+      <div class="name">${tensor.name}</div>
+      <div class="indices">
+        ${tensor.indices.map((idx, pos) => `
+          <div class="index-port" data-node="${node.id}" data-pos="${pos}">${idx}</div>
+        `).join('')}
+      </div>
+    `;
+
+    // Drag handling
+    el.addEventListener('mousedown', e => {
+      if (e.target.classList.contains('index-port')) return;
+      state.dragging = {
+        nodeId: node.id,
+        offsetX: e.offsetX,
+        offsetY: e.offsetY
+      };
+      el.classList.add('selected');
+    });
+
+    // Index port click - start/complete connection
+    el.querySelectorAll('.index-port').forEach(port => {
+      port.addEventListener('click', e => {
+        e.stopPropagation();
+        handlePortClick(node.id, parseInt(port.dataset.pos), tensor.indices[parseInt(port.dataset.pos)]);
+      });
+    });
+
+    canvas.appendChild(el);
+  });
+
+  updateConnectedPorts();
+}
+
+function renderConnections() {
+  const svg = document.getElementById('connections');
+  svg.innerHTML = '';
+
+  state.connections.forEach(conn => {
+    const fromPort = getPortPosition(conn.from.nodeId, conn.from.indexPos);
+    const toPort = getPortPosition(conn.to.nodeId, conn.to.indexPos);
+
+    if (!fromPort || !toPort) return;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const d = `M ${fromPort.x} ${fromPort.y} C ${fromPort.x} ${(fromPort.y + toPort.y) / 2}, ${toPort.x} ${(fromPort.y + toPort.y) / 2}, ${toPort.x} ${toPort.y}`;
+    path.setAttribute('d', d);
+    path.classList.add('connection');
+    svg.appendChild(path);
+  });
+
+  // Preview connection
+  if (state.connecting) {
+    const fromPort = getPortPosition(state.connecting.nodeId, state.connecting.indexPos);
+    if (fromPort && state.mousePos) {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const d = `M ${fromPort.x} ${fromPort.y} L ${state.mousePos.x} ${state.mousePos.y}`;
+      path.setAttribute('d', d);
+      path.classList.add('connection', 'preview');
+      svg.appendChild(path);
+    }
+  }
+}
+
+function getPortPosition(nodeId, indexPos) {
+  const nodeEl = document.querySelector(`.node[data-node-id="${nodeId}"]`);
+  if (!nodeEl) return null;
+
+  const port = nodeEl.querySelector(`.index-port[data-pos="${indexPos}"]`);
+  if (!port) return null;
+
+  const rect = port.getBoundingClientRect();
+  const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+
+  return {
+    x: rect.left + rect.width / 2 - canvasRect.left,
+    y: rect.top + rect.height / 2 - canvasRect.top
+  };
+}
+
+function updateConnectedPorts() {
+  // Reset all ports
+  document.querySelectorAll('.index-port').forEach(p => p.classList.remove('connected'));
+
+  // Mark connected ports
+  state.connections.forEach(conn => {
+    const fromPort = document.querySelector(`.index-port[data-node="${conn.from.nodeId}"][data-pos="${conn.from.indexPos}"]`);
+    const toPort = document.querySelector(`.index-port[data-node="${conn.to.nodeId}"][data-pos="${conn.to.indexPos}"]`);
+    if (fromPort) fromPort.classList.add('connected');
+    if (toPort) toPort.classList.add('connected');
+  });
+}
+
+function updateEinsum() {
+  // Build einsum string from canvas state
+  if (state.canvasNodes.length === 0) {
+    document.getElementById('einsumCode').textContent = "np.einsum('', )";
+    document.getElementById('resultShape').textContent = "Result: ()";
+    return;
+  }
+
+  // Collect indices per tensor
+  const tensorSpecs = state.canvasNodes.map(node => {
+    const tensor = state.tensors.find(t => t.id === node.tensorId);
+    return { node, tensor, indices: [...tensor.indices] };
+  });
+
+  // Find contracted indices (appear in connections)
+  const contracted = new Set();
+  state.connections.forEach(conn => {
+    const fromSpec = tensorSpecs.find(s => s.node.id === conn.from.nodeId);
+    const toSpec = tensorSpecs.find(s => s.node.id === conn.to.nodeId);
+    if (fromSpec && toSpec) {
+      contracted.add(fromSpec.indices[conn.from.indexPos]);
+    }
+  });
+
+  // Build input string
+  const inputParts = tensorSpecs.map(s => s.indices.join(''));
+  const inputStr = inputParts.join(',');
+
+  // Output indices = all indices not contracted
+  const allIndices = tensorSpecs.flatMap(s => s.indices);
+  const outputIndices = [...new Set(allIndices)].filter(i => !contracted.has(i));
+  const outputStr = outputIndices.join('');
+
+  // Names
+  const names = tensorSpecs.map(s => s.tensor.name).join(', ');
+
+  const einsum = `np.einsum('${inputStr}->${outputStr}', ${names})`;
+  document.getElementById('einsumCode').textContent = einsum;
+
+  // Compute result shape
+  const outputShape = outputIndices.map(idx => {
+    for (const spec of tensorSpecs) {
+      const pos = spec.indices.indexOf(idx);
+      if (pos >= 0) return spec.tensor.shape[pos];
+    }
+    return '?';
+  });
+
+  document.getElementById('resultShape').textContent = `Result: (${outputShape.join(', ')})`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INTERACTION
+// ═══════════════════════════════════════════════════════════════════════════
+
+function handlePortClick(nodeId, indexPos, indexName) {
+  if (!state.connecting) {
+    // Start connection
+    state.connecting = { nodeId, indexPos, indexName };
+  } else {
+    // Complete connection if indices match
+    if (state.connecting.nodeId === nodeId) {
+      // Same node, cancel
+      state.connecting = null;
+    } else {
+      // Check if indices match
+      const targetNode = state.canvasNodes.find(n => n.id === nodeId);
+      const targetTensor = state.tensors.find(t => t.id === targetNode.tensorId);
+      const targetIndex = targetTensor.indices[indexPos];
+
+      if (targetIndex === state.connecting.indexName) {
+        // Match! Create connection
+        state.connections.push({
+          from: { nodeId: state.connecting.nodeId, indexPos: state.connecting.indexPos },
+          to: { nodeId, indexPos }
+        });
+      }
+      state.connecting = null;
+    }
+    renderConnections();
+    updateConnectedPorts();
+    updateEinsum();
+  }
+}
+
+function loadPattern(index) {
+  const pattern = patterns[index];
+
+  // Clear canvas
+  state.canvasNodes = [];
+  state.connections = [];
+
+  // Parse pattern setup and add nodes
+  let x = 100;
+  pattern.setup.forEach((spec, i) => {
+    const [name, indices] = spec.split(':');
+    const tensor = state.tensors.find(t => t.name === name) ||
+                   { id: name, name, shape: indices.split('').map(() => 3), indices: indices.split('') };
+
+    // Add to tensors if not exists
+    if (!state.tensors.find(t => t.id === tensor.id)) {
+      state.tensors.push(tensor);
+      renderTensorList();
+    }
+
+    state.canvasNodes.push({
+      id: 'node_' + state.nextId++,
+      tensorId: tensor.id,
+      x: x,
+      y: 150
+    });
+    x += 180;
+  });
+
+  // Auto-connect matching indices
+  for (let i = 0; i < state.canvasNodes.length; i++) {
+    for (let j = i + 1; j < state.canvasNodes.length; j++) {
+      const t1 = state.tensors.find(t => t.id === state.canvasNodes[i].tensorId);
+      const t2 = state.tensors.find(t => t.id === state.canvasNodes[j].tensorId);
+
+      t1.indices.forEach((idx, pos1) => {
+        const pos2 = t2.indices.indexOf(idx);
+        if (pos2 >= 0) {
+          state.connections.push({
+            from: { nodeId: state.canvasNodes[i].id, indexPos: pos1 },
+            to: { nodeId: state.canvasNodes[j].id, indexPos: pos2 }
+          });
+        }
+      });
+    }
+  }
+
+  renderCanvasNodes();
+  renderConnections();
+  updateEinsum();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EVENT HANDLERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('canvas');
+
+canvas.addEventListener('dragover', e => e.preventDefault());
+
+canvas.addEventListener('drop', e => {
+  e.preventDefault();
+  const tensorId = e.dataTransfer.getData('tensorId');
+  if (!tensorId) return;
+
+  const rect = canvas.getBoundingClientRect();
+  state.canvasNodes.push({
+    id: 'node_' + state.nextId++,
+    tensorId,
+    x: e.clientX - rect.left - 50,
+    y: e.clientY - rect.top - 30
+  });
+
+  renderCanvasNodes();
+  renderConnections();
+  updateEinsum();
+});
+
+document.addEventListener('mousemove', e => {
+  if (state.dragging) {
+    const node = state.canvasNodes.find(n => n.id === state.dragging.nodeId);
+    if (node) {
+      const rect = canvas.getBoundingClientRect();
+      node.x = e.clientX - rect.left - state.dragging.offsetX;
+      node.y = e.clientY - rect.top - state.dragging.offsetY;
+
+      const el = document.querySelector(`.node[data-node-id="${node.id}"]`);
+      if (el) {
+        el.style.left = node.x + 'px';
+        el.style.top = node.y + 'px';
+      }
+      renderConnections();
+    }
+  }
+
+  if (state.connecting) {
+    const rect = canvas.getBoundingClientRect();
+    state.mousePos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    renderConnections();
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (state.dragging) {
+    document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+    state.dragging = null;
+  }
+});
+
+// Cancel connection on escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    state.connecting = null;
+    renderConnections();
+  }
+  // Delete selected node
+  if (e.key === 'Backspace' || e.key === 'Delete') {
+    const selected = document.querySelector('.node.selected');
+    if (selected) {
+      const nodeId = selected.dataset.nodeId;
+      state.canvasNodes = state.canvasNodes.filter(n => n.id !== nodeId);
+      state.connections = state.connections.filter(c =>
+        c.from.nodeId !== nodeId && c.to.nodeId !== nodeId
+      );
+      renderCanvasNodes();
+      renderConnections();
+      updateEinsum();
+    }
+  }
+});
+
+// Modal handling
+document.getElementById('addTensorBtn').onclick = () => {
+  document.getElementById('addModal').classList.add('visible');
+  document.getElementById('tensorName').focus();
+};
+
+document.getElementById('cancelBtn').onclick = () => {
+  document.getElementById('addModal').classList.remove('visible');
+};
+
+document.getElementById('confirmAddBtn').onclick = () => {
+  const name = document.getElementById('tensorName').value.trim();
+  const shapeStr = document.getElementById('tensorShape').value.trim();
+  const indicesStr = document.getElementById('tensorIndices').value.trim();
+
+  if (!name || !shapeStr || !indicesStr) return;
+
+  const shape = shapeStr.split(',').map(s => parseInt(s.trim()));
+  const indices = indicesStr.split(',').map(s => s.trim());
+
+  if (shape.length !== indices.length) {
+    alert('Shape and indices must have same length');
+    return;
+  }
+
+  state.tensors.push({
+    id: name + '_' + Date.now(),
+    name,
+    shape,
+    indices
+  });
+
+  document.getElementById('addModal').classList.remove('visible');
+  document.getElementById('tensorName').value = '';
+  document.getElementById('tensorShape').value = '';
+  document.getElementById('tensorIndices').value = '';
+
+  renderTensorList();
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════
+
+renderTensorList();
+renderPatterns();
+updateEinsum();
+
+// Load matrix multiply pattern by default
+setTimeout(() => loadPattern(0), 100);
+</script>
+</body>
+</html>

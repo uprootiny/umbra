@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hyperbolic Embedding Playground</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'SF Mono', 'Consolas', monospace;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto 1fr auto;
+      height: 100vh;
+      gap: 1px;
+      background: #333;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      background: #15151f;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      border-bottom: 1px solid #333;
+    }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 500;
+      color: #88f;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    button {
+      background: #252535;
+      border: 1px solid #444;
+      color: #aaa;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+
+    button:hover {
+      background: #353545;
+      color: #fff;
+      border-color: #666;
+    }
+
+    button.active {
+      background: #4040a0;
+      border-color: #6060c0;
+      color: #fff;
+    }
+
+    .view-panel {
+      background: #0f0f18;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .view-header {
+      padding: 10px 15px;
+      background: #18182a;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .view-title {
+      font-size: 13px;
+      color: #88a;
+    }
+
+    .view-info {
+      font-size: 11px;
+      color: #666;
+    }
+
+    canvas {
+      flex: 1;
+      width: 100%;
+      cursor: crosshair;
+    }
+
+    footer {
+      grid-column: 1 / -1;
+      background: #15151f;
+      padding: 10px 20px;
+      display: flex;
+      gap: 30px;
+      border-top: 1px solid #333;
+      font-size: 12px;
+    }
+
+    .metric-box {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .metric-label {
+      color: #666;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      color: #8af;
+      font-family: 'SF Mono', monospace;
+    }
+
+    .formula {
+      color: #a88;
+      font-style: italic;
+    }
+
+    .point-list {
+      position: absolute;
+      top: 50px;
+      right: 10px;
+      background: rgba(20, 20, 35, 0.9);
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 11px;
+      min-width: 120px;
+    }
+
+    .point-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .point-item:hover {
+      background: #252540;
+    }
+
+    .point-item.selected {
+      background: #353560;
+    }
+
+    .point-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .help-panel {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(20, 20, 35, 0.9);
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 10px;
+      font-size: 10px;
+      color: #888;
+    }
+
+    .help-panel kbd {
+      background: #333;
+      padding: 2px 5px;
+      border-radius: 2px;
+      color: #aaa;
+    }
+
+    .geodesic-preview {
+      stroke: rgba(100, 150, 255, 0.4);
+      stroke-width: 2;
+      stroke-dasharray: 5, 5;
+    }
+
+    .tree-import {
+      position: absolute;
+      top: 50px;
+      left: 10px;
+      background: rgba(20, 20, 35, 0.95);
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 10px;
+      display: none;
+    }
+
+    .tree-import.visible {
+      display: block;
+    }
+
+    .tree-import textarea {
+      width: 200px;
+      height: 100px;
+      background: #0a0a12;
+      border: 1px solid #333;
+      color: #ccc;
+      font-family: inherit;
+      font-size: 11px;
+      padding: 8px;
+      border-radius: 3px;
+      resize: none;
+    }
+
+    .tree-import button {
+      margin-top: 8px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Hyperbolic Embedding Playground</h1>
+      <div class="controls">
+        <button id="btn-add" class="active">Add Point</button>
+        <button id="btn-geodesic">Draw Geodesic</button>
+        <button id="btn-tree">Import Tree</button>
+        <button id="btn-clear">Clear All</button>
+      </div>
+      <div class="controls" style="margin-left: auto;">
+        <span style="color: #666; font-size: 11px;">Dimension:</span>
+        <button id="btn-dim2" class="active">H²</button>
+        <button id="btn-dim3">H³</button>
+        <button id="btn-dim8">H⁸</button>
+      </div>
+    </header>
+
+    <div class="view-panel" id="poincare-panel">
+      <div class="view-header">
+        <span class="view-title">Poincaré Disk Model</span>
+        <span class="view-info">Conformal (angles preserved)</span>
+      </div>
+      <canvas id="poincare-canvas"></canvas>
+      <div class="point-list" id="point-list"></div>
+      <div class="help-panel">
+        <kbd>Click</kbd> add point &nbsp;
+        <kbd>Drag</kbd> move point &nbsp;
+        <kbd>Shift+Click</kbd> select for geodesic
+      </div>
+      <div class="tree-import" id="tree-import">
+        <div style="color: #888; margin-bottom: 8px; font-size: 11px;">
+          Enter tree (nested format):
+        </div>
+        <textarea id="tree-input" placeholder="root
+  child1
+    leaf1
+    leaf2
+  child2
+    leaf3"></textarea>
+        <button id="btn-import-tree">Embed Tree</button>
+      </div>
+    </div>
+
+    <div class="view-panel" id="lorentz-panel">
+      <div class="view-header">
+        <span class="view-title">Lorentz Hyperboloid Model</span>
+        <span class="view-info">-x₀² + x₁² + ... + xₙ² = -1</span>
+      </div>
+      <canvas id="lorentz-canvas"></canvas>
+      <div class="help-panel">
+        <kbd>Drag</kbd> rotate view &nbsp;
+        <kbd>Scroll</kbd> zoom
+      </div>
+    </div>
+
+    <footer>
+      <div class="metric-box">
+        <span class="metric-label">Selected Points</span>
+        <span class="metric-value" id="selected-info">None</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">Hyperbolic Distance</span>
+        <span class="metric-value" id="distance-value">—</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">Lorentz Inner Product</span>
+        <span class="metric-value" id="lorentz-inner">—</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">Formula</span>
+        <span class="formula" id="distance-formula">d = acosh(-⟨A,B⟩_L)</span>
+      </div>
+      <div class="metric-box" style="margin-left: auto;">
+        <span class="metric-label">Total Points</span>
+        <span class="metric-value" id="point-count">0</span>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // ========================================
+    // Hyperbolic Geometry Core
+    // ========================================
+
+    const COLORS = [
+      '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7',
+      '#dfe6e9', '#fd79a8', '#a29bfe', '#00b894', '#e17055'
+    ];
+
+    let colorIndex = 0;
+    function nextColor() {
+      return COLORS[colorIndex++ % COLORS.length];
+    }
+
+    // Complex number operations
+    function C(re, im = 0) { return { re, im }; }
+    function cAdd(a, b) { return C(a.re + b.re, a.im + b.im); }
+    function cSub(a, b) { return C(a.re - b.re, a.im - b.im); }
+    function cMul(a, b) { return C(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re); }
+    function cDiv(a, b) {
+      const d = b.re * b.re + b.im * b.im;
+      return C((a.re * b.re + a.im * b.im) / d, (a.im * b.re - a.re * b.im) / d);
+    }
+    function cAbs(z) { return Math.sqrt(z.re * z.re + z.im * z.im); }
+    function cConj(z) { return C(z.re, -z.im); }
+    function cScale(z, s) { return C(z.re * s, z.im * s); }
+
+    // Poincaré disk operations
+    function poincareDistance(z1, z2) {
+      const diff = cSub(z1, z2);
+      const prod = cSub(C(1, 0), cMul(z1, cConj(z2)));
+      const ratio = cDiv(diff, prod);
+      const r = cAbs(ratio);
+      return 2 * Math.atanh(Math.min(r, 0.9999));
+    }
+
+    // Convert Poincaré disk to Lorentz hyperboloid
+    function diskToLorentz(z, dim = 2) {
+      const r2 = z.re * z.re + z.im * z.im;
+      const denom = 1 - r2;
+      if (denom <= 0) return lorentzOrigin(dim);
+
+      const x0 = (1 + r2) / denom;  // time-like component
+      const x1 = (2 * z.re) / denom;
+      const x2 = (2 * z.im) / denom;
+
+      const result = new Array(dim + 1).fill(0);
+      result[0] = x0;
+      result[1] = x1;
+      if (dim >= 2) result[2] = x2;
+      return result;
+    }
+
+    // Convert Lorentz to Poincaré disk (projection)
+    function lorentzToDisk(p) {
+      const x0 = p[0];
+      if (x0 <= 1) return C(0, 0);
+      const denom = 1 + x0;
+      return C(p[1] / denom, (p[2] || 0) / denom);
+    }
+
+    function lorentzOrigin(dim = 2) {
+      const result = new Array(dim + 1).fill(0);
+      result[0] = 1;
+      return result;
+    }
+
+    // Minkowski inner product
+    function minkowskiInner(a, b) {
+      let sum = -a[0] * b[0];
+      for (let i = 1; i < a.length; i++) {
+        sum += a[i] * b[i];
+      }
+      return sum;
+    }
+
+    // Lorentz distance
+    function lorentzDistance(a, b) {
+      const inner = -minkowskiInner(a, b);
+      return Math.acosh(Math.max(1, inner));
+    }
+
+    // Geodesic interpolation on hyperboloid
+    function lorentzGeodesicLerp(a, b, t) {
+      const inner = -minkowskiInner(a, b);
+      const d = Math.acosh(Math.max(1, inner));
+      if (d < 1e-10) return [...a];
+
+      const sinhD = Math.sinh(d);
+      const coeffA = Math.sinh((1 - t) * d) / sinhD;
+      const coeffB = Math.sinh(t * d) / sinhD;
+
+      return a.map((_, i) => coeffA * a[i] + coeffB * b[i]);
+    }
+
+    // Normalize to hyperboloid
+    function lorentzNormalize(p) {
+      const norm2 = -minkowskiInner(p, p);
+      if (norm2 <= 0) return lorentzOrigin(p.length - 1);
+      const scale = 1 / Math.sqrt(norm2);
+      return p.map((x, i) => i === 0 ? Math.abs(x * scale) : x * scale);
+    }
+
+    // ========================================
+    // State
+    // ========================================
+
+    const state = {
+      points: [],
+      geodesics: [],
+      selected: [],
+      mode: 'add',  // 'add', 'geodesic'
+      dimension: 2,
+      dragging: null,
+      lorentzRotation: { theta: 0.3, phi: 0.5 },
+      lorentzZoom: 1.5
+    };
+
+    let nextId = 1;
+
+    function addPoint(z, label = null) {
+      const id = nextId++;
+      const point = {
+        id,
+        label: label || `P${id}`,
+        z,
+        lorentz: diskToLorentz(z, state.dimension),
+        color: nextColor()
+      };
+      state.points.push(point);
+      updatePointList();
+      render();
+      return point;
+    }
+
+    function removePoint(id) {
+      state.points = state.points.filter(p => p.id !== id);
+      state.geodesics = state.geodesics.filter(g => g.from !== id && g.to !== id);
+      state.selected = state.selected.filter(s => s !== id);
+      updatePointList();
+      render();
+    }
+
+    function addGeodesic(fromId, toId) {
+      if (fromId === toId) return;
+      const exists = state.geodesics.some(
+        g => (g.from === fromId && g.to === toId) || (g.from === toId && g.to === fromId)
+      );
+      if (!exists) {
+        state.geodesics.push({ from: fromId, to: toId });
+        render();
+      }
+    }
+
+    // ========================================
+    // Poincaré Canvas
+    // ========================================
+
+    const poincareCanvas = document.getElementById('poincare-canvas');
+    const poincareCtx = poincareCanvas.getContext('2d');
+
+    function resizeCanvas(canvas) {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height - 50;
+    }
+
+    function getPoincareTransform() {
+      const size = Math.min(poincareCanvas.width, poincareCanvas.height);
+      const radius = size * 0.42;
+      const cx = poincareCanvas.width / 2;
+      const cy = poincareCanvas.height / 2;
+      return { cx, cy, radius };
+    }
+
+    function diskToScreen(z) {
+      const { cx, cy, radius } = getPoincareTransform();
+      return {
+        x: cx + z.re * radius,
+        y: cy + z.im * radius
+      };
+    }
+
+    function screenToDisk(x, y) {
+      const { cx, cy, radius } = getPoincareTransform();
+      return C((x - cx) / radius, (y - cy) / radius);
+    }
+
+    function drawPoincareGeodesic(ctx, z1, z2, style = {}) {
+      const { cx, cy, radius } = getPoincareTransform();
+
+      // Check if geodesic passes through origin (straight line)
+      const cross = z1.re * z2.im - z1.im * z2.re;
+
+      if (Math.abs(cross) < 0.001) {
+        // Straight line through origin
+        const p1 = diskToScreen(z1);
+        const p2 = diskToScreen(z2);
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+      } else {
+        // Arc of circle orthogonal to boundary
+        // Find circle center and radius
+        const d1 = z1.re * z1.re + z1.im * z1.im;
+        const d2 = z2.re * z2.re + z2.im * z2.im;
+
+        const cx2 = ((1 + d1) * z2.im - (1 + d2) * z1.im) / (2 * cross);
+        const cy2 = ((1 + d2) * z1.re - (1 + d1) * z2.re) / (2 * cross);
+        const r = Math.sqrt(cx2 * cx2 + cy2 * cy2 - 1);
+
+        const screenCx = cx + cx2 * radius;
+        const screenCy = cy + cy2 * radius;
+        const screenR = r * radius;
+
+        const angle1 = Math.atan2(z1.im - cy2, z1.re - cx2);
+        const angle2 = Math.atan2(z2.im - cy2, z2.re - cx2);
+
+        ctx.beginPath();
+        ctx.arc(screenCx, screenCy, screenR, angle1, angle2, cross < 0);
+      }
+
+      ctx.strokeStyle = style.color || '#4488ff';
+      ctx.lineWidth = style.width || 2;
+      if (style.dash) ctx.setLineDash(style.dash);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function renderPoincare() {
+      const ctx = poincareCtx;
+      const { cx, cy, radius } = getPoincareTransform();
+
+      ctx.clearRect(0, 0, poincareCanvas.width, poincareCanvas.height);
+
+      // Draw disk boundary
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#12121f';
+      ctx.fill();
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Draw hyperbolic grid (concentric circles = equal distance from origin)
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 1;
+      for (let d = 0.5; d < 3; d += 0.5) {
+        const r = Math.tanh(d / 2);  // Poincaré disk radius for distance d
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Draw radial lines
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
+        ctx.stroke();
+      }
+
+      // Draw geodesics
+      for (const g of state.geodesics) {
+        const p1 = state.points.find(p => p.id === g.from);
+        const p2 = state.points.find(p => p.id === g.to);
+        if (p1 && p2) {
+          drawPoincareGeodesic(ctx, p1.z, p2.z, { color: '#4488ff', width: 2 });
+        }
+      }
+
+      // Draw points
+      for (const point of state.points) {
+        const { x, y } = diskToScreen(point.z);
+        const isSelected = state.selected.includes(point.id);
+
+        // Point circle
+        ctx.beginPath();
+        ctx.arc(x, y, isSelected ? 10 : 7, 0, Math.PI * 2);
+        ctx.fillStyle = point.color;
+        ctx.fill();
+
+        if (isSelected) {
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        // Label
+        ctx.fillStyle = '#fff';
+        ctx.font = '11px SF Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(point.label, x, y - 14);
+      }
+
+      // Draw geodesic preview if in geodesic mode with one point selected
+      if (state.mode === 'geodesic' && state.selected.length === 1) {
+        const p1 = state.points.find(p => p.id === state.selected[0]);
+        if (p1 && state.hoverPos) {
+          drawPoincareGeodesic(ctx, p1.z, state.hoverPos, {
+            color: 'rgba(100, 150, 255, 0.4)',
+            width: 2,
+            dash: [5, 5]
+          });
+        }
+      }
+    }
+
+    // ========================================
+    // Lorentz Canvas (3D projection)
+    // ========================================
+
+    const lorentzCanvas = document.getElementById('lorentz-canvas');
+    const lorentzCtx = lorentzCanvas.getContext('2d');
+
+    function project3D(p, rotation, zoom) {
+      // Apply rotation
+      const { theta, phi } = rotation;
+
+      // Get spatial components (x1, x2, x3 or just x1, x2)
+      let x = p[1] || 0;
+      let y = p[2] || 0;
+      let z = p[0] - 1;  // Shift origin to bottom of hyperboloid
+
+      // Rotate around y-axis (theta)
+      const x1 = x * Math.cos(theta) + z * Math.sin(theta);
+      const z1 = -x * Math.sin(theta) + z * Math.cos(theta);
+
+      // Rotate around x-axis (phi)
+      const y1 = y * Math.cos(phi) - z1 * Math.sin(phi);
+      const z2 = y * Math.sin(phi) + z1 * Math.cos(phi);
+
+      // Simple perspective projection
+      const perspective = 5;
+      const scale = perspective / (perspective + z2 + 2);
+
+      return {
+        x: x1 * scale * zoom,
+        y: -y1 * scale * zoom,  // Flip y for screen coords
+        depth: z2
+      };
+    }
+
+    function renderLorentz() {
+      const ctx = lorentzCtx;
+      const width = lorentzCanvas.width;
+      const height = lorentzCanvas.height;
+      const cx = width / 2;
+      const cy = height / 2;
+      const scale = Math.min(width, height) * 0.15;
+
+      ctx.clearRect(0, 0, width, height);
+
+      // Draw hyperboloid surface (wireframe)
+      ctx.strokeStyle = '#223';
+      ctx.lineWidth = 1;
+
+      // Vertical slices
+      for (let i = 0; i < 16; i++) {
+        const angle = (i / 16) * Math.PI * 2;
+        ctx.beginPath();
+        let first = true;
+        for (let t = 0; t <= 2; t += 0.1) {
+          const x0 = Math.cosh(t);
+          const r = Math.sinh(t);
+          const x1 = r * Math.cos(angle);
+          const x2 = r * Math.sin(angle);
+
+          const proj = project3D([x0, x1, x2], state.lorentzRotation, state.lorentzZoom);
+          const sx = cx + proj.x * scale;
+          const sy = cy + proj.y * scale;
+
+          if (first) {
+            ctx.moveTo(sx, sy);
+            first = false;
+          } else {
+            ctx.lineTo(sx, sy);
+          }
+        }
+        ctx.stroke();
+      }
+
+      // Horizontal slices
+      for (let t = 0.5; t <= 2; t += 0.5) {
+        ctx.beginPath();
+        let first = true;
+        for (let i = 0; i <= 32; i++) {
+          const angle = (i / 32) * Math.PI * 2;
+          const x0 = Math.cosh(t);
+          const r = Math.sinh(t);
+          const x1 = r * Math.cos(angle);
+          const x2 = r * Math.sin(angle);
+
+          const proj = project3D([x0, x1, x2], state.lorentzRotation, state.lorentzZoom);
+          const sx = cx + proj.x * scale;
+          const sy = cy + proj.y * scale;
+
+          if (first) {
+            ctx.moveTo(sx, sy);
+            first = false;
+          } else {
+            ctx.lineTo(sx, sy);
+          }
+        }
+        ctx.stroke();
+      }
+
+      // Draw geodesics
+      ctx.strokeStyle = '#4488ff';
+      ctx.lineWidth = 2;
+      for (const g of state.geodesics) {
+        const p1 = state.points.find(p => p.id === g.from);
+        const p2 = state.points.find(p => p.id === g.to);
+        if (p1 && p2) {
+          ctx.beginPath();
+          let first = true;
+          for (let t = 0; t <= 1; t += 0.05) {
+            const interp = lorentzGeodesicLerp(p1.lorentz, p2.lorentz, t);
+            const proj = project3D(interp, state.lorentzRotation, state.lorentzZoom);
+            const sx = cx + proj.x * scale;
+            const sy = cy + proj.y * scale;
+
+            if (first) {
+              ctx.moveTo(sx, sy);
+              first = false;
+            } else {
+              ctx.lineTo(sx, sy);
+            }
+          }
+          ctx.stroke();
+        }
+      }
+
+      // Sort points by depth for proper rendering
+      const sortedPoints = [...state.points].map(p => {
+        const proj = project3D(p.lorentz, state.lorentzRotation, state.lorentzZoom);
+        return { ...p, proj, sx: cx + proj.x * scale, sy: cy + proj.y * scale };
+      }).sort((a, b) => a.proj.depth - b.proj.depth);
+
+      // Draw points
+      for (const point of sortedPoints) {
+        const isSelected = state.selected.includes(point.id);
+
+        ctx.beginPath();
+        ctx.arc(point.sx, point.sy, isSelected ? 8 : 5, 0, Math.PI * 2);
+        ctx.fillStyle = point.color;
+        ctx.fill();
+
+        if (isSelected) {
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        // Label
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px SF Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(point.label, point.sx, point.sy - 10);
+      }
+
+      // Draw axes indicator
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 1;
+      const axisLen = 30;
+      const origin = project3D([1, 0, 0], state.lorentzRotation, state.lorentzZoom);
+      const ox = 50, oy = height - 50;
+
+      // x1 axis (red)
+      const x1End = project3D([1, 0.5, 0], state.lorentzRotation, state.lorentzZoom);
+      ctx.strokeStyle = '#f66';
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      ctx.lineTo(ox + (x1End.x - origin.x) * axisLen * 2, oy + (x1End.y - origin.y) * axisLen * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#f66';
+      ctx.fillText('x₁', ox + (x1End.x - origin.x) * axisLen * 2.5, oy + (x1End.y - origin.y) * axisLen * 2.5);
+
+      // x2 axis (green)
+      const x2End = project3D([1, 0, 0.5], state.lorentzRotation, state.lorentzZoom);
+      ctx.strokeStyle = '#6f6';
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      ctx.lineTo(ox + (x2End.x - origin.x) * axisLen * 2, oy + (x2End.y - origin.y) * axisLen * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#6f6';
+      ctx.fillText('x₂', ox + (x2End.x - origin.x) * axisLen * 2.5, oy + (x2End.y - origin.y) * axisLen * 2.5);
+
+      // x0 axis (blue - time)
+      const x0End = project3D([1.5, 0, 0], state.lorentzRotation, state.lorentzZoom);
+      ctx.strokeStyle = '#66f';
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      ctx.lineTo(ox + (x0End.x - origin.x) * axisLen * 2, oy + (x0End.y - origin.y) * axisLen * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#66f';
+      ctx.fillText('x₀', ox + (x0End.x - origin.x) * axisLen * 2.5, oy + (x0End.y - origin.y) * axisLen * 2.5);
+    }
+
+    function render() {
+      renderPoincare();
+      renderLorentz();
+      updateMetrics();
+      document.getElementById('point-count').textContent = state.points.length;
+    }
+
+    // ========================================
+    // Point List
+    // ========================================
+
+    function updatePointList() {
+      const list = document.getElementById('point-list');
+      list.innerHTML = state.points.map(p => `
+        <div class="point-item ${state.selected.includes(p.id) ? 'selected' : ''}" data-id="${p.id}">
+          <div class="point-dot" style="background: ${p.color}"></div>
+          <span>${p.label}</span>
+        </div>
+      `).join('');
+
+      list.querySelectorAll('.point-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const id = parseInt(item.dataset.id);
+          toggleSelection(id);
+        });
+      });
+    }
+
+    // ========================================
+    // Metrics
+    // ========================================
+
+    function updateMetrics() {
+      const selectedInfo = document.getElementById('selected-info');
+      const distanceValue = document.getElementById('distance-value');
+      const lorentzInner = document.getElementById('lorentz-inner');
+
+      if (state.selected.length === 0) {
+        selectedInfo.textContent = 'None';
+        distanceValue.textContent = '—';
+        lorentzInner.textContent = '—';
+      } else if (state.selected.length === 1) {
+        const p = state.points.find(pt => pt.id === state.selected[0]);
+        selectedInfo.textContent = p ? p.label : 'None';
+        distanceValue.textContent = '—';
+        lorentzInner.textContent = '—';
+      } else if (state.selected.length === 2) {
+        const p1 = state.points.find(pt => pt.id === state.selected[0]);
+        const p2 = state.points.find(pt => pt.id === state.selected[1]);
+        if (p1 && p2) {
+          selectedInfo.textContent = `${p1.label}, ${p2.label}`;
+
+          const dist = poincareDistance(p1.z, p2.z);
+          distanceValue.textContent = dist.toFixed(4);
+
+          const inner = minkowskiInner(p1.lorentz, p2.lorentz);
+          lorentzInner.textContent = inner.toFixed(4);
+        }
+      }
+    }
+
+    // ========================================
+    // Interaction
+    // ========================================
+
+    function toggleSelection(id) {
+      const idx = state.selected.indexOf(id);
+      if (idx >= 0) {
+        state.selected.splice(idx, 1);
+      } else {
+        state.selected.push(id);
+        if (state.selected.length > 2) {
+          state.selected.shift();
+        }
+      }
+
+      if (state.mode === 'geodesic' && state.selected.length === 2) {
+        addGeodesic(state.selected[0], state.selected[1]);
+        state.selected = [];
+      }
+
+      updatePointList();
+      render();
+    }
+
+    function findPointAt(z, threshold = 0.08) {
+      for (const p of state.points) {
+        if (cAbs(cSub(p.z, z)) < threshold) {
+          return p;
+        }
+      }
+      return null;
+    }
+
+    // Poincaré canvas events
+    poincareCanvas.addEventListener('mousedown', (e) => {
+      const rect = poincareCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const z = screenToDisk(x, y);
+
+      if (cAbs(z) >= 1) return;  // Outside disk
+
+      const point = findPointAt(z);
+
+      if (point) {
+        if (e.shiftKey || state.mode === 'geodesic') {
+          toggleSelection(point.id);
+        } else {
+          state.dragging = point;
+        }
+      } else if (state.mode === 'add') {
+        addPoint(z);
+      }
+    });
+
+    poincareCanvas.addEventListener('mousemove', (e) => {
+      const rect = poincareCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const z = screenToDisk(x, y);
+
+      state.hoverPos = z;
+
+      if (state.dragging) {
+        if (cAbs(z) < 0.99) {
+          state.dragging.z = z;
+          state.dragging.lorentz = diskToLorentz(z, state.dimension);
+        }
+        render();
+      } else if (state.mode === 'geodesic' && state.selected.length === 1) {
+        render();
+      }
+    });
+
+    poincareCanvas.addEventListener('mouseup', () => {
+      state.dragging = null;
+    });
+
+    poincareCanvas.addEventListener('mouseleave', () => {
+      state.dragging = null;
+      state.hoverPos = null;
+    });
+
+    // Lorentz canvas events (rotation)
+    let lorentzDragging = false;
+    let lastLorentzPos = null;
+
+    lorentzCanvas.addEventListener('mousedown', (e) => {
+      lorentzDragging = true;
+      lastLorentzPos = { x: e.clientX, y: e.clientY };
+    });
+
+    lorentzCanvas.addEventListener('mousemove', (e) => {
+      if (lorentzDragging && lastLorentzPos) {
+        const dx = e.clientX - lastLorentzPos.x;
+        const dy = e.clientY - lastLorentzPos.y;
+
+        state.lorentzRotation.theta += dx * 0.01;
+        state.lorentzRotation.phi += dy * 0.01;
+        state.lorentzRotation.phi = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, state.lorentzRotation.phi));
+
+        lastLorentzPos = { x: e.clientX, y: e.clientY };
+        render();
+      }
+    });
+
+    lorentzCanvas.addEventListener('mouseup', () => {
+      lorentzDragging = false;
+      lastLorentzPos = null;
+    });
+
+    lorentzCanvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      state.lorentzZoom *= e.deltaY > 0 ? 0.9 : 1.1;
+      state.lorentzZoom = Math.max(0.3, Math.min(5, state.lorentzZoom));
+      render();
+    });
+
+    // ========================================
+    // Tree Import
+    // ========================================
+
+    function parseTree(text) {
+      const lines = text.split('\n').filter(l => l.trim());
+      const nodes = [];
+      const stack = [{ indent: -1, node: null }];
+
+      for (const line of lines) {
+        const indent = line.search(/\S/);
+        const label = line.trim();
+        if (!label) continue;
+
+        while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
+          stack.pop();
+        }
+
+        const parent = stack[stack.length - 1].node;
+        const node = { label, children: [], parent };
+
+        if (parent) {
+          parent.children.push(node);
+        }
+        nodes.push(node);
+        stack.push({ indent, node });
+      }
+
+      return nodes.find(n => !n.parent);  // Return root
+    }
+
+    function embedTree(root, center = C(0, 0), radius = 0.8, startAngle = 0, endAngle = Math.PI * 2) {
+      if (!root) return;
+
+      // Place root at center
+      const point = addPoint(center, root.label);
+
+      if (root.children.length === 0) return;
+
+      // Distribute children around the root
+      const angleSpan = endAngle - startAngle;
+      const childRadius = radius * 0.6;  // Shrink for each level
+
+      root.children.forEach((child, i) => {
+        const angle = startAngle + (i + 0.5) * angleSpan / root.children.length;
+        const childAngleSpan = angleSpan / root.children.length;
+
+        // Position in hyperbolic space (closer to edge = exponentially more space)
+        const r = Math.tanh(0.8);  // Fixed distance in hyperbolic metric
+        const childCenter = C(
+          center.re + r * Math.cos(angle),
+          center.im + r * Math.sin(angle)
+        );
+
+        embedTree(
+          child,
+          childCenter,
+          childRadius,
+          angle - childAngleSpan / 2,
+          angle + childAngleSpan / 2
+        );
+
+        // Add geodesic from parent to child
+        const childPoint = state.points[state.points.length - 1];
+        addGeodesic(point.id, childPoint.id);
+      });
+    }
+
+    document.getElementById('btn-import-tree').addEventListener('click', () => {
+      const text = document.getElementById('tree-input').value;
+      const root = parseTree(text);
+      if (root) {
+        state.points = [];
+        state.geodesics = [];
+        state.selected = [];
+        colorIndex = 0;
+        nextId = 1;
+        embedTree(root);
+        document.getElementById('tree-import').classList.remove('visible');
+        render();
+      }
+    });
+
+    // ========================================
+    // Button handlers
+    // ========================================
+
+    document.getElementById('btn-add').addEventListener('click', function() {
+      state.mode = 'add';
+      document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+    });
+
+    document.getElementById('btn-geodesic').addEventListener('click', function() {
+      state.mode = 'geodesic';
+      state.selected = [];
+      document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      render();
+    });
+
+    document.getElementById('btn-tree').addEventListener('click', () => {
+      document.getElementById('tree-import').classList.toggle('visible');
+    });
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      state.points = [];
+      state.geodesics = [];
+      state.selected = [];
+      colorIndex = 0;
+      nextId = 1;
+      updatePointList();
+      render();
+    });
+
+    // Dimension buttons
+    document.getElementById('btn-dim2').addEventListener('click', function() {
+      state.dimension = 2;
+      document.querySelectorAll('[id^="btn-dim"]').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      // Update all points
+      state.points.forEach(p => {
+        p.lorentz = diskToLorentz(p.z, state.dimension);
+      });
+      render();
+    });
+
+    document.getElementById('btn-dim3').addEventListener('click', function() {
+      state.dimension = 3;
+      document.querySelectorAll('[id^="btn-dim"]').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      state.points.forEach(p => {
+        p.lorentz = diskToLorentz(p.z, state.dimension);
+      });
+      render();
+    });
+
+    document.getElementById('btn-dim8').addEventListener('click', function() {
+      state.dimension = 8;
+      document.querySelectorAll('[id^="btn-dim"]').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      state.points.forEach(p => {
+        p.lorentz = diskToLorentz(p.z, state.dimension);
+      });
+      render();
+    });
+
+    // ========================================
+    // Initialize
+    // ========================================
+
+    function init() {
+      resizeCanvas(poincareCanvas);
+      resizeCanvas(lorentzCanvas);
+
+      // Add some example points
+      addPoint(C(0, 0), 'Origin');
+      addPoint(C(0.5, 0.3), 'A');
+      addPoint(C(-0.4, 0.5), 'B');
+      addPoint(C(0.2, -0.6), 'C');
+
+      // Add example geodesics
+      addGeodesic(1, 2);
+      addGeodesic(2, 3);
+      addGeodesic(3, 4);
+
+      render();
+    }
+
+    window.addEventListener('resize', () => {
+      resizeCanvas(poincareCanvas);
+      resizeCanvas(lorentzCanvas);
+      render();
+    });
+
+    init();
+  </script>
+</body>
+</html>

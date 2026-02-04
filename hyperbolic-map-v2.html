@@ -1,0 +1,1291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hyperbolic Navigator</title>
+  <style>
+    :root {
+      --bg: #08090c;
+      --panel: #0d0f14;
+      --surface: #13161d;
+      --ink: #e4e4e8;
+      --muted: #7a7b85;
+      --dim: #4a4b52;
+      --line: rgba(255,255,255,.06);
+      --accent: #6eb5ff;
+      --accent-dim: rgba(110,181,255,.15);
+      --warm: #ffb86c;
+      --warm-dim: rgba(255,184,108,.15);
+      --success: #50fa7b;
+      --ring: rgba(110,181,255,.08);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%; margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'SF Mono', ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      grid-template-rows: 1fr;
+      height: 100%;
+    }
+
+    /* Main canvas area */
+    .viewport {
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(ellipse at center, #0d0f14 0%, #08090c 100%);
+    }
+
+    canvas {
+      width: 100%; height: 100%;
+      display: block;
+      cursor: grab;
+    }
+    canvas:active { cursor: grabbing; }
+
+    /* Floating HUD */
+    .hud {
+      position: absolute;
+      left: 16px; top: 16px;
+      display: flex; flex-direction: column; gap: 6px;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .hud-row {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .chip {
+      font-size: 11px;
+      color: var(--muted);
+      background: rgba(13,15,20,.85);
+      border: 1px solid var(--line);
+      padding: 5px 10px;
+      border-radius: 6px;
+      backdrop-filter: blur(12px);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .chip .val { color: var(--ink); font-weight: 500; }
+    .chip.accent .val { color: var(--accent); }
+
+    /* Search */
+    .search-wrap {
+      position: absolute;
+      top: 16px; right: 336px;
+      z-index: 20;
+    }
+    .search {
+      width: 200px;
+      background: rgba(13,15,20,.9);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--ink);
+      font: inherit;
+      font-size: 12px;
+      outline: none;
+      transition: border-color .15s, width .2s;
+    }
+    .search:focus {
+      border-color: var(--accent-dim);
+      width: 260px;
+    }
+    .search::placeholder { color: var(--dim); }
+
+    /* Keyboard hints */
+    .hints {
+      position: absolute;
+      bottom: 16px; left: 16px;
+      display: flex; gap: 12px;
+      pointer-events: none;
+      opacity: .6;
+    }
+    .hint {
+      font-size: 10px;
+      color: var(--muted);
+      display: flex; align-items: center; gap: 4px;
+    }
+    kbd {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      padding: 2px 5px;
+      font-size: 9px;
+      color: var(--dim);
+    }
+
+    /* Minimap */
+    .minimap {
+      position: absolute;
+      bottom: 16px; right: 336px;
+      width: 100px; height: 100px;
+      background: rgba(13,15,20,.85);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      backdrop-filter: blur(12px);
+      overflow: hidden;
+    }
+    .minimap canvas { cursor: pointer; }
+
+    /* Side panel */
+    .panel {
+      background: var(--panel);
+      border-left: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-section:last-child { border-bottom: none; }
+
+    .section-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--dim);
+      margin-bottom: 12px;
+    }
+
+    /* Node info */
+    .node-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .node-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: var(--accent-dim);
+      display: grid; place-items: center;
+      font-size: 14px;
+      color: var(--accent);
+    }
+    .node-icon.pinned { background: var(--warm-dim); color: var(--warm); }
+    .node-name { font-size: 15px; font-weight: 600; }
+    .node-path { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .props {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: 6px 12px;
+      font-size: 12px;
+    }
+    .prop-k { color: var(--dim); }
+    .prop-v { color: var(--muted); }
+    .prop-v.highlight { color: var(--accent); }
+
+    /* Actions */
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .btn {
+      font: inherit;
+      font-size: 11px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      padding: 7px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all .12s;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .btn:hover {
+      background: rgba(255,255,255,.04);
+      border-color: rgba(255,255,255,.1);
+      color: var(--ink);
+    }
+    .btn:active { transform: scale(.97); }
+    .btn.primary {
+      background: var(--accent-dim);
+      border-color: rgba(110,181,255,.25);
+      color: var(--accent);
+    }
+    .btn.primary:hover {
+      background: rgba(110,181,255,.22);
+    }
+
+    /* View options */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+    }
+    .toggle-row + .toggle-row { border-top: 1px solid var(--line); }
+    .toggle-label { font-size: 12px; color: var(--muted); }
+    .toggle {
+      width: 36px; height: 20px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .toggle.on {
+      background: var(--accent-dim);
+      border-color: rgba(110,181,255,.3);
+    }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 14px; height: 14px;
+      background: var(--muted);
+      border-radius: 50%;
+      top: 2px; left: 2px;
+      transition: all .15s;
+    }
+    .toggle.on::after {
+      left: 18px;
+      background: var(--accent);
+    }
+
+    /* Depth legend */
+    .legend {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+
+    /* Stats footer */
+    .stats {
+      margin-top: auto;
+      padding: 12px 16px;
+      background: var(--surface);
+      border-top: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      text-align: center;
+    }
+    .stat-val { font-size: 16px; font-weight: 600; color: var(--ink); }
+    .stat-label { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; }
+
+    /* Scrollable area */
+    .panel-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .panel-scroll::-webkit-scrollbar { width: 6px; }
+    .panel-scroll::-webkit-scrollbar-track { background: transparent; }
+    .panel-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="viewport">
+    <canvas id="c"></canvas>
+
+    <div class="hud">
+      <div class="hud-row">
+        <div class="chip accent">
+          <span>Focus</span>
+          <span class="val" id="focusName">Home</span>
+        </div>
+        <div class="chip">
+          <span>Depth</span>
+          <span class="val" id="focusDepth">0</span>
+        </div>
+      </div>
+      <div class="hud-row">
+        <div class="chip">
+          <span>Visible</span>
+          <span class="val" id="visCount">0</span>
+        </div>
+        <div class="chip">
+          <span>Zoom</span>
+          <span class="val" id="zoomVal">1.00</span>
+        </div>
+        <div class="chip">
+          <span>d<sub>H</sub></span>
+          <span class="val" id="hypDist">0.00</span>
+        </div>
+      </div>
+    </div>
+
+    <input type="text" class="search" placeholder="Search nodes... (⌘K)" id="search">
+
+    <div class="minimap">
+      <canvas id="mini" width="100" height="100"></canvas>
+    </div>
+
+    <div class="hints">
+      <div class="hint"><kbd>Drag</kbd> Pan</div>
+      <div class="hint"><kbd>Scroll</kbd> Zoom</div>
+      <div class="hint"><kbd>Click</kbd> Focus</div>
+      <div class="hint"><kbd>⇧Click</kbd> Pin</div>
+      <div class="hint"><kbd>Space</kbd> Home</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-scroll">
+      <div class="panel-section">
+        <div class="section-title">Selected Node</div>
+        <div class="node-header">
+          <div class="node-icon" id="nodeIcon">⬡</div>
+          <div>
+            <div class="node-name" id="nodeName">Home</div>
+            <div class="node-path" id="nodePath">Root</div>
+          </div>
+        </div>
+        <div class="props" id="props"></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-title">Actions</div>
+        <div class="actions">
+          <button class="btn primary" id="btnCenter">⌖ Center</button>
+          <button class="btn" id="btnPin">◎ Pin</button>
+          <button class="btn" id="btnExpand">⊕ Expand</button>
+          <button class="btn" id="btnCollapse">⊖ Collapse</button>
+        </div>
+        <div style="height:12px"></div>
+        <div class="actions">
+          <button class="btn" id="btnHome">⌂ Home</button>
+          <button class="btn" id="btnBack">← Back</button>
+          <button class="btn" id="btnFwd">→ Forward</button>
+          <button class="btn" id="btnRegen">↻ New Graph</button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-title">View Options</div>
+        <div class="toggle-row">
+          <span class="toggle-label">Show geodesics</span>
+          <div class="toggle on" id="togGeodesic"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Show labels</span>
+          <div class="toggle on" id="togLabels"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Show grid</span>
+          <div class="toggle" id="togGrid"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Animate transitions</span>
+          <div class="toggle on" id="togAnimate"></div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-title">Depth Legend</div>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div>
+        <div class="stat-val" id="statNodes">0</div>
+        <div class="stat-label">Nodes</div>
+      </div>
+      <div>
+        <div class="stat-val" id="statEdges">0</div>
+        <div class="stat-label">Edges</div>
+      </div>
+      <div>
+        <div class="stat-val" id="statPinned">0</div>
+        <div class="stat-label">Pinned</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * Hyperbolic Navigator v2
+ * Enhanced Poincaré disk visualization with:
+ * - True hyperbolic geodesics (circular arcs ⊥ boundary)
+ * - Momentum-based panning with friction
+ * - Smooth animated transitions via Möbius interpolation
+ * - Hyperbolic distance calculations
+ * - Advanced depth-based coloring
+ */
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const mini = document.getElementById('mini');
+const mctx = mini.getContext('2d');
+
+// ════════════════════════════════════════════════════════════════
+// Complex arithmetic
+// ════════════════════════════════════════════════════════════════
+const C = (re, im=0) => ({re, im});
+const add = (a,b) => C(a.re+b.re, a.im+b.im);
+const sub = (a,b) => C(a.re-b.re, a.im-b.im);
+const mul = (a,b) => C(a.re*b.re - a.im*b.im, a.re*b.im + a.im*b.re);
+const scale = (a,k) => C(a.re*k, a.im*k);
+const conj = (a) => C(a.re, -a.im);
+const abs2 = (a) => a.re*a.re + a.im*a.im;
+const abs = (a) => Math.sqrt(abs2(a));
+const arg = (a) => Math.atan2(a.im, a.re);
+const polar = (r, θ) => C(r*Math.cos(θ), r*Math.sin(θ));
+const div = (a,b) => {
+  const d = abs2(b);
+  return C((a.re*b.re + a.im*b.im)/d, (a.im*b.re - a.re*b.im)/d);
+};
+const normalize = (a) => {
+  const r = abs(a);
+  return r < 1e-10 ? C(0,0) : scale(a, 1/r);
+};
+
+// Clamp inside disk
+const clampDisk = (z, eps=1e-6) => {
+  const r = abs(z);
+  return r >= 1-eps ? scale(z, (1-eps)/r) : z;
+};
+
+// ════════════════════════════════════════════════════════════════
+// Hyperbolic geometry (Poincaré disk model)
+// ════════════════════════════════════════════════════════════════
+
+// Möbius transformation: T_a(z) = (z - a) / (1 - conj(a)*z)
+function mobius(a, z) {
+  const num = sub(z, a);
+  const den = sub(C(1), mul(conj(a), z));
+  return div(num, den);
+}
+
+// Inverse: T_a^{-1}(w) = (w + a) / (1 + conj(a)*w)
+function mobiusInv(a, w) {
+  const num = add(w, a);
+  const den = add(C(1), mul(conj(a), w));
+  return div(num, den);
+}
+
+// Hyperbolic distance: d(z,w) = 2 * arctanh(|z-w| / |1 - conj(z)*w|)
+function hypDist(z, w) {
+  const num = abs(sub(z, w));
+  const den = abs(sub(C(1), mul(conj(z), w)));
+  const ratio = num / den;
+  if (ratio >= 1) return Infinity;
+  return 2 * Math.atanh(ratio);
+}
+
+// Geodesic between two points (returns arc parameters for drawing)
+// In Poincaré disk, geodesics are circular arcs perpendicular to boundary
+function geodesicArc(z1, z2) {
+  const d = abs(sub(z1, z2));
+  if (d < 1e-8) return null;
+
+  // Check if nearly collinear with origin (geodesic is diameter)
+  const cross = z1.re * z2.im - z1.im * z2.re;
+  if (Math.abs(cross) < 1e-6) {
+    return { type: 'line', z1, z2 };
+  }
+
+  // Find circle center (perpendicular bisector intersection with inversion)
+  // For geodesic through z1, z2: center lies on perpendicular bisector
+  // and the circle is orthogonal to unit circle
+
+  // Using the formula: center = ((1+|z1|²)z2 - (1+|z2|²)z1) / (2 * Im(conj(z1)*z2))
+  // times i to rotate... let's use a cleaner approach:
+
+  const r1sq = abs2(z1), r2sq = abs2(z2);
+  const det = 2 * (z1.re * z2.im - z1.im * z2.re);
+
+  const cx = ((1 + r1sq) * z2.im - (1 + r2sq) * z1.im) / det;
+  const cy = ((1 + r2sq) * z1.re - (1 + r1sq) * z2.re) / det;
+  const center = C(cx, cy);
+  const radius = abs(sub(z1, center));
+
+  // Angles for arc
+  const θ1 = Math.atan2(z1.im - cy, z1.re - cx);
+  const θ2 = Math.atan2(z2.im - cy, z2.re - cx);
+
+  return { type: 'arc', center, radius, θ1, θ2, z1, z2 };
+}
+
+// Interpolate along geodesic (for smooth transitions)
+function geodesicInterp(z1, z2, t) {
+  if (t <= 0) return z1;
+  if (t >= 1) return z2;
+
+  // Move z1 to origin, interpolate radially, move back
+  const w = mobius(z1, z2);
+  const r = abs(w);
+  if (r < 1e-10) return z1;
+
+  const θ = arg(w);
+  // Hyperbolic interpolation: tanh(t * atanh(r))
+  const rInterp = Math.tanh(t * Math.atanh(Math.min(r, 0.9999)));
+  const wInterp = polar(rInterp, θ);
+
+  return mobiusInv(z1, wInterp);
+}
+
+// ════════════════════════════════════════════════════════════════
+// Graph generation
+// ════════════════════════════════════════════════════════════════
+
+const DEPTH_COLORS = [
+  '#6eb5ff', // 0 - bright blue
+  '#9d8cff', // 1 - purple
+  '#c77dff', // 2 - magenta
+  '#ff8fa3', // 3 - pink
+  '#ffb86c', // 4 - orange
+  '#f1fa8c', // 5 - yellow
+  '#50fa7b', // 6 - green
+  '#8be9fd', // 7+ - cyan
+];
+
+function depthColor(d) {
+  return DEPTH_COLORS[Math.min(d, DEPTH_COLORS.length - 1)];
+}
+
+function makeGraph(nodeCount = 180, maxBranch = 4) {
+  const nodes = [];
+  const edges = [];
+
+  // Root at origin
+  nodes.push({
+    id: 0, name: 'Home', depth: 0, parent: null,
+    z: C(0, 0), pinned: false, collapsed: false,
+    children: []
+  });
+
+  let id = 1;
+  const queue = [nodes[0]];
+
+  while (id < nodeCount && queue.length > 0) {
+    const parent = queue.shift();
+    const branches = 1 + Math.floor(Math.random() * maxBranch);
+
+    for (let i = 0; i < branches && id < nodeCount; i++) {
+      const depth = parent.depth + 1;
+
+      // Position: spread children around parent's direction with increasing radius
+      const parentAngle = abs(parent.z) < 0.01 ?
+        (i / branches) * 2 * Math.PI :
+        arg(parent.z);
+
+      const spread = 0.8 / Math.max(1, branches - 1);
+      const angleOffset = (i - (branches - 1) / 2) * spread;
+      const angle = parentAngle + angleOffset + (Math.random() - 0.5) * 0.3;
+
+      // Hyperbolic-aware radius: grows with depth but respects exponential packing
+      const baseR = 0.15 + depth * 0.1;
+      const noise = (Math.random() - 0.5) * 0.05;
+      const r = Math.min(0.97, Math.tanh(baseR + noise));
+
+      const z = clampDisk(polar(r, angle));
+
+      const node = {
+        id,
+        name: `Node ${id}`,
+        depth,
+        parent: parent.id,
+        z,
+        pinned: false,
+        collapsed: false,
+        children: []
+      };
+
+      nodes.push(node);
+      edges.push([parent.id, id]);
+      parent.children.push(id);
+
+      if (depth < 8 && Math.random() < 0.85) {
+        queue.push(node);
+      }
+      id++;
+    }
+  }
+
+  return { nodes, edges };
+}
+
+// ════════════════════════════════════════════════════════════════
+// Application state
+// ════════════════════════════════════════════════════════════════
+
+const state = {
+  graph: makeGraph(),
+  camera: C(0, 0),      // Möbius parameter (camera position in hyperbolic space)
+  targetCamera: C(0, 0), // For smooth transitions
+  zoom: 1.0,
+  targetZoom: 1.0,
+  selected: 0,
+
+  // Physics
+  velocity: C(0, 0),
+  friction: 0.92,
+
+  // History
+  history: [],
+  historyIdx: -1,
+
+  // View options
+  showGeodesics: true,
+  showLabels: true,
+  showGrid: false,
+  animate: true,
+
+  // Interaction
+  dragging: false,
+  lastPointer: null,
+  lastTime: 0,
+};
+
+// Initialize history
+function pushHistory() {
+  state.history = state.history.slice(0, state.historyIdx + 1);
+  state.history.push({
+    selected: state.selected,
+    camera: C(state.camera.re, state.camera.im),
+    zoom: state.zoom
+  });
+  state.historyIdx = state.history.length - 1;
+}
+pushHistory();
+
+// ════════════════════════════════════════════════════════════════
+// Rendering
+// ════════════════════════════════════════════════════════════════
+
+function resize() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.floor(rect.width * dpr);
+  canvas.height = Math.floor(rect.height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+function toScreen(z, W, H) {
+  const pad = 40;
+  const R = Math.min(W, H) / 2 - pad;
+  return { x: W/2 + z.re * R * state.zoom, y: H/2 + z.im * R * state.zoom, R };
+}
+
+function fromScreen(x, y, W, H) {
+  const pad = 40;
+  const R = Math.min(W, H) / 2 - pad;
+  return C((x - W/2) / (R * state.zoom), (y - H/2) / (R * state.zoom));
+}
+
+function transformedPos(node) {
+  return clampDisk(mobius(state.camera, node.z));
+}
+
+function nodeScreen(node, W, H) {
+  const z = transformedPos(node);
+  return toScreen(z, W, H);
+}
+
+function drawBackground(W, H) {
+  const { R } = toScreen(C(0,0), W, H);
+  const cx = W/2, cy = H/2;
+
+  // Gradient background for disk
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+  grad.addColorStop(0, 'rgba(20,22,30,0.3)');
+  grad.addColorStop(0.7, 'rgba(15,17,23,0.2)');
+  grad.addColorStop(1, 'rgba(10,12,16,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Boundary circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(110,181,255,0.15)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Subtle concentric rings (horocycles visualization)
+  if (state.showGrid) {
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 5; i++) {
+      const r = R * Math.tanh(i * 0.4);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(110,181,255,${0.03 + i * 0.01})`;
+      ctx.stroke();
+    }
+
+    // Radial lines
+    for (let i = 0; i < 8; i++) {
+      const θ = i * Math.PI / 4;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + R * Math.cos(θ), cy + R * Math.sin(θ));
+      ctx.strokeStyle = 'rgba(110,181,255,0.04)';
+      ctx.stroke();
+    }
+  }
+}
+
+function drawGeodesic(z1, z2, W, H, alpha = 0.12) {
+  const p1 = toScreen(z1, W, H);
+  const p2 = toScreen(z2, W, H);
+  const { R } = p1;
+
+  if (!state.showGeodesics) {
+    // Simple straight line fallback
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    return;
+  }
+
+  const arc = geodesicArc(z1, z2);
+  if (!arc) return;
+
+  ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+
+  if (arc.type === 'line') {
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+  } else {
+    // Transform arc center and radius to screen
+    const pc = toScreen(arc.center, W, H);
+    const screenR = arc.radius * R * state.zoom;
+
+    // Calculate angles in screen space
+    const θ1 = Math.atan2(p1.y - pc.y, p1.x - pc.x);
+    const θ2 = Math.atan2(p2.y - pc.y, p2.x - pc.x);
+
+    // Determine arc direction (shorter path)
+    let dθ = θ2 - θ1;
+    while (dθ > Math.PI) dθ -= 2 * Math.PI;
+    while (dθ < -Math.PI) dθ += 2 * Math.PI;
+
+    const ccw = dθ < 0;
+    ctx.arc(pc.x, pc.y, screenR, θ1, θ2, ccw);
+  }
+  ctx.stroke();
+}
+
+function drawEdges(W, H) {
+  const nodeMap = new Map(state.graph.nodes.map(n => [n.id, n]));
+
+  for (const [aId, bId] of state.graph.edges) {
+    const a = nodeMap.get(aId);
+    const b = nodeMap.get(bId);
+    if (!a || !b) continue;
+    if (a.collapsed || b.collapsed) continue;
+
+    const za = transformedPos(a);
+    const zb = transformedPos(b);
+
+    // Skip if both far from view
+    if (abs(za) > 1.5 && abs(zb) > 1.5) continue;
+
+    // Edge alpha based on depth and distance from center
+    const avgDepth = (a.depth + b.depth) / 2;
+    const avgDist = (abs(za) + abs(zb)) / 2;
+    const alpha = Math.max(0.04, 0.15 - avgDepth * 0.01 - avgDist * 0.08);
+
+    drawGeodesic(za, zb, W, H, alpha);
+  }
+}
+
+function drawNode(node, W, H) {
+  const z = transformedPos(node);
+  const r2 = abs2(z);
+
+  // Skip nodes too far outside view
+  if (r2 > 2.5) return;
+
+  const p = toScreen(z, W, H);
+  const isSel = node.id === state.selected;
+
+  // Size based on hyperbolic distance from center (closer = larger)
+  const baseSize = isSel ? 9 : 7;
+  const sizeScale = 1.3 - 0.8 * Math.min(1, Math.sqrt(r2));
+  const size = baseSize * sizeScale;
+
+  // Color by depth
+  const color = depthColor(node.depth);
+
+  // Glow for selected/pinned
+  if (isSel || node.pinned) {
+    const glowColor = node.pinned ? 'rgba(255,184,108,0.3)' : 'rgba(110,181,255,0.3)';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, size + 8, 0, Math.PI * 2);
+    ctx.fillStyle = glowColor;
+    ctx.fill();
+  }
+
+  // Node body
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+
+  if (isSel) {
+    ctx.fillStyle = '#6eb5ff';
+    ctx.shadowColor = '#6eb5ff';
+    ctx.shadowBlur = 12;
+  } else if (node.pinned) {
+    ctx.fillStyle = '#ffb86c';
+    ctx.shadowColor = '#ffb86c';
+    ctx.shadowBlur = 8;
+  } else {
+    // Depth-based gradient
+    const grad = ctx.createRadialGradient(p.x - size/3, p.y - size/3, 0, p.x, p.y, size);
+    grad.addColorStop(0, color);
+    grad.addColorStop(1, adjustBrightness(color, -30));
+    ctx.fillStyle = grad;
+    ctx.shadowBlur = 0;
+  }
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Border
+  ctx.strokeStyle = isSel ? 'rgba(110,181,255,0.6)' : 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = isSel ? 2 : 1;
+  ctx.stroke();
+
+  // Label
+  if (state.showLabels && (r2 < 0.5 || isSel || node.pinned)) {
+    const label = node.name;
+    ctx.font = `${isSel ? '600 ' : ''}11px 'SF Mono', ui-monospace, monospace`;
+    ctx.fillStyle = isSel ? '#fff' : `rgba(255,255,255,${0.85 - r2 * 0.4})`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, p.x + size + 6, p.y);
+  }
+}
+
+function adjustBrightness(hex, amt) {
+  const num = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amt));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amt));
+  const b = Math.min(255, Math.max(0, (num & 0xff) + amt));
+  return `rgb(${r},${g},${b})`;
+}
+
+function drawMinimap() {
+  const W = mini.width, H = mini.height;
+  const R = Math.min(W, H) / 2 - 4;
+
+  mctx.clearRect(0, 0, W, H);
+  mctx.save();
+  mctx.translate(W/2, H/2);
+
+  // Disk boundary
+  mctx.beginPath();
+  mctx.arc(0, 0, R, 0, Math.PI * 2);
+  mctx.strokeStyle = 'rgba(110,181,255,0.3)';
+  mctx.lineWidth = 1;
+  mctx.stroke();
+
+  // Nodes as tiny dots
+  for (const node of state.graph.nodes) {
+    const z = transformedPos(node);
+    if (abs(z) > 1.1) continue;
+
+    const x = z.re * R;
+    const y = z.im * R;
+    const isSel = node.id === state.selected;
+
+    mctx.beginPath();
+    mctx.arc(x, y, isSel ? 3 : 1.5, 0, Math.PI * 2);
+    mctx.fillStyle = isSel ? '#6eb5ff' : (node.pinned ? '#ffb86c' : 'rgba(255,255,255,0.4)');
+    mctx.fill();
+  }
+
+  // Camera indicator (origin in world space after transform)
+  const camPos = mobius(state.camera, C(0, 0)); // Where origin appears
+  mctx.beginPath();
+  mctx.arc(-camPos.re * R, -camPos.im * R, 4, 0, Math.PI * 2);
+  mctx.strokeStyle = '#6eb5ff';
+  mctx.lineWidth = 1.5;
+  mctx.stroke();
+
+  mctx.restore();
+}
+
+function draw() {
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+
+  // Physics update
+  updatePhysics();
+
+  // Clear
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  drawBackground(W, H);
+
+  // Edges
+  drawEdges(W, H);
+
+  // Nodes (sorted by transformed distance, far first)
+  const sortedNodes = [...state.graph.nodes]
+    .filter(n => !n.collapsed)
+    .map(n => ({ node: n, dist: abs2(transformedPos(n)) }))
+    .sort((a, b) => b.dist - a.dist);
+
+  for (const { node } of sortedNodes) {
+    drawNode(node, W, H);
+  }
+
+  // Minimap
+  drawMinimap();
+
+  // Update HUD
+  updateHUD();
+
+  requestAnimationFrame(draw);
+}
+
+function updatePhysics() {
+  const dt = 1/60;
+
+  // Apply velocity with friction
+  if (!state.dragging && abs(state.velocity) > 0.0001) {
+    const step = scale(state.velocity, dt * 2);
+    state.camera = clampDisk(mobiusInv(step, state.camera));
+    state.velocity = scale(state.velocity, state.friction);
+  }
+
+  // Smooth camera transition
+  if (state.animate && abs(sub(state.camera, state.targetCamera)) > 0.001) {
+    state.camera = geodesicInterp(state.camera, state.targetCamera, 0.12);
+  }
+
+  // Smooth zoom
+  if (Math.abs(state.zoom - state.targetZoom) > 0.001) {
+    state.zoom += (state.targetZoom - state.zoom) * 0.15;
+  }
+}
+
+function updateHUD() {
+  const sel = state.graph.nodes.find(n => n.id === state.selected);
+  if (!sel) return;
+
+  document.getElementById('focusName').textContent = sel.name;
+  document.getElementById('focusDepth').textContent = sel.depth;
+  document.getElementById('visCount').textContent = state.graph.nodes.filter(n => abs(transformedPos(n)) < 1.1).length;
+  document.getElementById('zoomVal').textContent = state.zoom.toFixed(2);
+  document.getElementById('hypDist').textContent = hypDist(C(0,0), sel.z).toFixed(2);
+
+  // Stats
+  document.getElementById('statNodes').textContent = state.graph.nodes.length;
+  document.getElementById('statEdges').textContent = state.graph.edges.length;
+  document.getElementById('statPinned').textContent = state.graph.nodes.filter(n => n.pinned).length;
+}
+
+// ════════════════════════════════════════════════════════════════
+// Interaction
+// ════════════════════════════════════════════════════════════════
+
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  state.dragging = true;
+  state.lastPointer = { x: e.offsetX, y: e.offsetY };
+  state.lastTime = performance.now();
+  state.velocity = C(0, 0);
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (!state.dragging) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  const now = { x: e.offsetX, y: e.offsetY };
+  const dt = Math.max(1, performance.now() - state.lastTime) / 1000;
+
+  // Convert to disk coordinates
+  const z0 = fromScreen(state.lastPointer.x, state.lastPointer.y, W, H);
+  const z1 = fromScreen(now.x, now.y, W, H);
+  const delta = sub(z0, z1);
+
+  // Scale for hyperbolic feel
+  const scaleFactor = 0.8 / Math.max(0.3, state.zoom);
+  const step = clampDisk(scale(delta, scaleFactor));
+
+  // Update camera
+  state.camera = clampDisk(mobiusInv(step, state.camera));
+  state.targetCamera = state.camera;
+
+  // Track velocity for momentum
+  state.velocity = scale(delta, scaleFactor / dt * 0.3);
+
+  state.lastPointer = now;
+  state.lastTime = performance.now();
+});
+
+canvas.addEventListener('pointerup', () => {
+  state.dragging = false;
+  state.lastPointer = null;
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = Math.exp(-e.deltaY * 0.002);
+  state.targetZoom = Math.max(0.3, Math.min(3, state.targetZoom * factor));
+}, { passive: false });
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+
+  // Find nearest node
+  let best = null, bestD2 = Infinity;
+  for (const node of state.graph.nodes) {
+    if (node.collapsed) continue;
+    const p = nodeScreen(node, W, H);
+    const dx = p.x - e.offsetX, dy = p.y - e.offsetY;
+    const d2 = dx*dx + dy*dy;
+    if (d2 < bestD2) { bestD2 = d2; best = node; }
+  }
+
+  if (!best || bestD2 > 400) return;
+
+  if (e.shiftKey) {
+    best.pinned = !best.pinned;
+    updatePanel();
+    return;
+  }
+
+  // Focus on node
+  state.selected = best.id;
+  state.targetCamera = clampDisk(best.z);
+  if (!state.animate) state.camera = state.targetCamera;
+  state.velocity = C(0, 0);
+  pushHistory();
+  updatePanel();
+});
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+
+  if (e.key === ' ') {
+    e.preventDefault();
+    goHome();
+  } else if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    document.getElementById('search').focus();
+  } else if (e.key === 'Escape') {
+    document.getElementById('search').blur();
+  } else if (e.key === 'ArrowLeft' && (e.metaKey || e.ctrlKey)) {
+    goBack();
+  } else if (e.key === 'ArrowRight' && (e.metaKey || e.ctrlKey)) {
+    goForward();
+  }
+});
+
+// Search
+const searchInput = document.getElementById('search');
+searchInput.addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  if (!q) return;
+
+  const match = state.graph.nodes.find(n => n.name.toLowerCase().includes(q));
+  if (match) {
+    state.selected = match.id;
+    state.targetCamera = clampDisk(match.z);
+    updatePanel();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// Panel & controls
+// ════════════════════════════════════════════════════════════════
+
+function updatePanel() {
+  const node = state.graph.nodes.find(n => n.id === state.selected);
+  if (!node) return;
+
+  // Header
+  const iconEl = document.getElementById('nodeIcon');
+  iconEl.textContent = node.depth === 0 ? '⌂' : '⬡';
+  iconEl.className = 'node-icon' + (node.pinned ? ' pinned' : '');
+
+  document.getElementById('nodeName').textContent = node.name;
+
+  // Path
+  const path = [];
+  let cur = node;
+  const nodeMap = new Map(state.graph.nodes.map(n => [n.id, n]));
+  while (cur) {
+    path.unshift(cur.name);
+    cur = cur.parent != null ? nodeMap.get(cur.parent) : null;
+  }
+  document.getElementById('nodePath').textContent = path.join(' › ');
+
+  // Properties
+  const props = document.getElementById('props');
+  props.innerHTML = '';
+
+  const data = [
+    ['ID', node.id],
+    ['Depth', node.depth],
+    ['Children', node.children.length],
+    ['Pinned', node.pinned ? 'Yes' : 'No'],
+    ['|z|', abs(node.z).toFixed(4)],
+    ['d(0,z)', hypDist(C(0,0), node.z).toFixed(3)],
+    ['Camera', `${state.camera.re.toFixed(3)}+${state.camera.im.toFixed(3)}i`],
+  ];
+
+  for (const [k, v] of data) {
+    const kEl = document.createElement('div');
+    kEl.className = 'prop-k';
+    kEl.textContent = k;
+    const vEl = document.createElement('div');
+    vEl.className = 'prop-v';
+    vEl.textContent = v;
+    props.appendChild(kEl);
+    props.appendChild(vEl);
+  }
+
+  // Update pin button text
+  document.getElementById('btnPin').textContent = node.pinned ? '◎ Unpin' : '◎ Pin';
+}
+
+function goHome() {
+  state.selected = 0;
+  state.targetCamera = C(0, 0);
+  state.targetZoom = 1;
+  if (!state.animate) {
+    state.camera = state.targetCamera;
+    state.zoom = state.targetZoom;
+  }
+  state.velocity = C(0, 0);
+  pushHistory();
+  updatePanel();
+}
+
+function goBack() {
+  if (state.historyIdx > 0) {
+    state.historyIdx--;
+    const h = state.history[state.historyIdx];
+    state.selected = h.selected;
+    state.targetCamera = h.camera;
+    state.targetZoom = h.zoom;
+    if (!state.animate) {
+      state.camera = h.camera;
+      state.zoom = h.zoom;
+    }
+    updatePanel();
+  }
+}
+
+function goForward() {
+  if (state.historyIdx < state.history.length - 1) {
+    state.historyIdx++;
+    const h = state.history[state.historyIdx];
+    state.selected = h.selected;
+    state.targetCamera = h.camera;
+    state.targetZoom = h.zoom;
+    if (!state.animate) {
+      state.camera = h.camera;
+      state.zoom = h.zoom;
+    }
+    updatePanel();
+  }
+}
+
+function regenerate() {
+  state.graph = makeGraph(180, 4);
+  state.camera = C(0, 0);
+  state.targetCamera = C(0, 0);
+  state.zoom = 1;
+  state.targetZoom = 1;
+  state.selected = 0;
+  state.history = [];
+  state.historyIdx = -1;
+  pushHistory();
+  updatePanel();
+}
+
+// Button handlers
+document.getElementById('btnHome').onclick = goHome;
+document.getElementById('btnBack').onclick = goBack;
+document.getElementById('btnFwd').onclick = goForward;
+document.getElementById('btnRegen').onclick = regenerate;
+
+document.getElementById('btnCenter').onclick = () => {
+  const node = state.graph.nodes.find(n => n.id === state.selected);
+  if (node) {
+    state.targetCamera = clampDisk(node.z);
+    state.velocity = C(0, 0);
+  }
+};
+
+document.getElementById('btnPin').onclick = () => {
+  const node = state.graph.nodes.find(n => n.id === state.selected);
+  if (node) {
+    node.pinned = !node.pinned;
+    updatePanel();
+  }
+};
+
+document.getElementById('btnExpand').onclick = () => {
+  const node = state.graph.nodes.find(n => n.id === state.selected);
+  if (node) node.collapsed = false;
+};
+
+document.getElementById('btnCollapse').onclick = () => {
+  const node = state.graph.nodes.find(n => n.id === state.selected);
+  if (node) node.collapsed = true;
+};
+
+// Toggles
+function setupToggle(id, prop) {
+  const el = document.getElementById(id);
+  el.classList.toggle('on', state[prop]);
+  el.onclick = () => {
+    state[prop] = !state[prop];
+    el.classList.toggle('on', state[prop]);
+  };
+}
+setupToggle('togGeodesic', 'showGeodesics');
+setupToggle('togLabels', 'showLabels');
+setupToggle('togGrid', 'showGrid');
+setupToggle('togAnimate', 'animate');
+
+// Legend
+const legend = document.getElementById('legend');
+DEPTH_COLORS.forEach((color, i) => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.innerHTML = `<div class="legend-dot" style="background:${color}"></div>${i}`;
+  legend.appendChild(item);
+});
+
+// Initialize
+updatePanel();
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

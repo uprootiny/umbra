@@ -1,0 +1,66 @@
+;; shadow-cljs configuration for Umbra H^n engine
+;; Build with: npx shadow-cljs watch app
+;; Or: clj -M:dev watch app
+
+{:source-paths ["src"]
+
+ :dependencies
+ [[binaryage/devtools "1.0.7"]]
+
+ :dev-http
+ {8080 "public"}
+
+ :builds
+ {:app
+  {:target :browser
+   :output-dir "public/js/cljs"
+   :asset-path "/js/cljs"
+
+   :modules
+   {:hn-core
+    {:init-fn app.math.hn.core/init!
+     :entries [app.math.hn.core
+               app.math.hn.minkowski
+               app.math.hn.hyperboloid
+               app.math.hn.maps
+               app.math.hn.isometries
+               app.math.hn.chart
+               app.math.hn.pointset
+               app.math.hn.field
+               app.math.hn.lens
+               app.math.hn.operator
+               app.math.hn.pool
+               app.math.hn.vptree
+               app.math.hn.batch
+               app.math.hn.animate
+               app.math.hn.keyboard
+               app.render.webgl
+               app.state.persist
+               app.state.history
+               app.ui.interact
+               app.ui.drag
+               app.ui.nav
+               app.ui.export
+               app.ui.clipboard
+               app.ui.context-menu
+               app.ui.touch
+               app.ui.style
+               app.ui.labels
+               app.math.hn.layout]}}
+
+   :devtools
+   {:before-load app.math.hn.core/before-reload!
+    :after-load app.math.hn.core/after-reload!
+    :preloads [devtools.preload]}
+
+   :compiler-options
+   {:optimizations :advanced
+    :output-feature-set :es2020
+    :infer-externs :auto
+    :externs ["externs/engine.js"]}}
+
+  :test
+  {:target :node-test
+   :output-to "out/test.js"
+   :ns-regexp "-test$"
+   :autorun true}}}

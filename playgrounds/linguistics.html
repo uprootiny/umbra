@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Historical Linguistics Explorer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'SF Mono', 'Consolas', monospace;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 260px 1fr 300px;
+      grid-template-rows: auto 1fr;
+      height: 100vh;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      background: #15151f;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      border-bottom: 1px solid #333;
+    }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 500;
+      color: #c9a87c;
+    }
+
+    .view-tabs {
+      display: flex;
+      gap: 4px;
+      background: #1a1a28;
+      padding: 4px;
+      border-radius: 6px;
+    }
+
+    .view-tab {
+      padding: 6px 14px;
+      background: transparent;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+
+    .view-tab:hover {
+      color: #ccc;
+    }
+
+    .view-tab.active {
+      background: #252535;
+      color: #c9a87c;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: #12121c;
+      border-right: 1px solid #333;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    .sidebar-right {
+      border-right: none;
+      border-left: 1px solid #333;
+    }
+
+    .section-title {
+      font-size: 11px;
+      color: #666;
+      text-transform: uppercase;
+      margin: 15px 0 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .section-title:first-child {
+      margin-top: 0;
+    }
+
+    /* Language tree */
+    .lang-tree {
+      font-size: 12px;
+    }
+
+    .lang-node {
+      padding: 4px 0;
+      cursor: pointer;
+    }
+
+    .lang-node-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+
+    .lang-node-header:hover {
+      background: #252535;
+    }
+
+    .lang-node.selected > .lang-node-header {
+      background: #2a2520;
+      color: #c9a87c;
+    }
+
+    .lang-toggle {
+      width: 12px;
+      color: #666;
+      font-size: 10px;
+    }
+
+    .lang-name {
+      flex: 1;
+    }
+
+    .lang-date {
+      font-size: 10px;
+      color: #666;
+    }
+
+    .lang-children {
+      margin-left: 18px;
+      border-left: 1px solid #333;
+      display: none;
+    }
+
+    .lang-node.expanded > .lang-children {
+      display: block;
+    }
+
+    .lang-tag {
+      font-size: 9px;
+      padding: 1px 5px;
+      background: #252535;
+      border-radius: 3px;
+      color: #888;
+    }
+
+    .lang-tag.living { background: #253525; color: #7d7; }
+    .lang-tag.extinct { background: #352525; color: #d77; }
+    .lang-tag.cuneiform { background: #252535; color: #88f; }
+
+    /* Main canvas area */
+    .main-area {
+      background: #0f0f18;
+      position: relative;
+      overflow: hidden;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Timeline view */
+    .timeline {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 80px;
+      background: rgba(15, 15, 24, 0.95);
+      border-top: 1px solid #333;
+      padding: 10px 20px;
+    }
+
+    .timeline-axis {
+      position: relative;
+      height: 40px;
+      margin-top: 10px;
+    }
+
+    .timeline-tick {
+      position: absolute;
+      bottom: 0;
+      width: 1px;
+      background: #444;
+    }
+
+    .timeline-label {
+      position: absolute;
+      bottom: 25px;
+      font-size: 10px;
+      color: #666;
+      transform: translateX(-50%);
+    }
+
+    .timeline-bar {
+      position: absolute;
+      height: 16px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .timeline-bar:hover {
+      opacity: 0.8;
+    }
+
+    .timeline-bar-label {
+      position: absolute;
+      left: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 9px;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: calc(100% - 8px);
+    }
+
+    /* Info panel */
+    .info-card {
+      background: #1a1a28;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .info-title {
+      font-size: 14px;
+      color: #c9a87c;
+      margin-bottom: 8px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 11px;
+      border-bottom: 1px solid #222;
+    }
+
+    .info-label {
+      color: #888;
+    }
+
+    .info-value {
+      color: #ccc;
+    }
+
+    /* Cognate display */
+    .cognate-list {
+      font-size: 12px;
+    }
+
+    .cognate-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      background: #1a1a28;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+
+    .cognate-lang {
+      min-width: 80px;
+      color: #888;
+      font-size: 10px;
+    }
+
+    .cognate-word {
+      flex: 1;
+      font-size: 14px;
+    }
+
+    .cognate-word.hebrew { direction: rtl; font-family: 'SBL Hebrew', 'Times New Roman', serif; }
+    .cognate-word.arabic { direction: rtl; font-family: 'Scheherazade', 'Times New Roman', serif; }
+    .cognate-word.syriac { direction: rtl; font-family: 'Estrangelo Edessa', serif; }
+
+    .cognate-meaning {
+      font-size: 10px;
+      color: #666;
+    }
+
+    /* Sound change display */
+    .sound-change {
+      padding: 10px;
+      background: #1a1a28;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+
+    .sound-change-rule {
+      font-size: 14px;
+      color: #c9a87c;
+      margin-bottom: 6px;
+      font-family: 'Doulos SIL', 'Charis SIL', serif;
+    }
+
+    .sound-change-env {
+      font-size: 11px;
+      color: #888;
+    }
+
+    .sound-change-example {
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 6px;
+    }
+
+    /* Search */
+    .search-box {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .search-box input {
+      flex: 1;
+      background: #1a1a28;
+      border: 1px solid #333;
+      padding: 8px 12px;
+      border-radius: 4px;
+      color: #ccc;
+      font-family: inherit;
+      font-size: 12px;
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: #c9a87c;
+    }
+
+    /* Corpus browser */
+    .corpus-item {
+      padding: 10px;
+      background: #1a1a28;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      border-left: 3px solid #333;
+      transition: all 0.15s;
+    }
+
+    .corpus-item:hover {
+      background: #252535;
+    }
+
+    .corpus-item.selected {
+      border-left-color: #c9a87c;
+    }
+
+    .corpus-title {
+      font-size: 12px;
+      color: #ccc;
+      margin-bottom: 4px;
+    }
+
+    .corpus-meta {
+      font-size: 10px;
+      color: #666;
+    }
+
+    /* Script display */
+    .script-evolution {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px;
+      overflow-x: auto;
+    }
+
+    .script-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 60px;
+    }
+
+    .script-glyph {
+      font-size: 24px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .script-label {
+      font-size: 9px;
+      color: #666;
+      text-align: center;
+    }
+
+    .script-arrow {
+      color: #444;
+      font-size: 16px;
+    }
+
+    /* Help overlay */
+    .help-hint {
+      position: absolute;
+      bottom: 90px;
+      left: 10px;
+      background: rgba(20, 20, 35, 0.9);
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 10px;
+      color: #888;
+    }
+
+    .help-hint kbd {
+      background: #333;
+      padding: 2px 5px;
+      border-radius: 2px;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Historical Linguistics Explorer</h1>
+      <div class="view-tabs">
+        <button class="view-tab active" data-view="tree">Family Tree</button>
+        <button class="view-tab" data-view="timeline">Timeline</button>
+        <button class="view-tab" data-view="cognates">Cognates</button>
+        <button class="view-tab" data-view="sounds">Sound Changes</button>
+      </div>
+      <span style="margin-left: auto; color: #666; font-size: 11px;">Focus: Levantine Languages</span>
+    </header>
+
+    <div class="sidebar">
+      <div class="search-box">
+        <input type="text" id="search" placeholder="Search languages...">
+      </div>
+
+      <div class="section-title">Language Families</div>
+      <div class="lang-tree" id="lang-tree"></div>
+    </div>
+
+    <div class="main-area">
+      <canvas id="canvas"></canvas>
+      <div class="timeline" id="timeline"></div>
+      <div class="help-hint">
+        <kbd>Click</kbd> select &nbsp;
+        <kbd>Drag</kbd> pan &nbsp;
+        <kbd>Scroll</kbd> zoom
+      </div>
+    </div>
+
+    <div class="sidebar sidebar-right">
+      <div class="section-title">Selected Language</div>
+      <div id="info-panel">
+        <div class="info-card">
+          <div style="color: #666; font-size: 12px;">Select a language from the tree</div>
+        </div>
+      </div>
+
+      <div class="section-title">Corpora</div>
+      <div id="corpus-list"></div>
+
+      <div class="section-title">Script Evolution</div>
+      <div class="script-evolution" id="script-evolution"></div>
+    </div>
+  </div>
+
+  <script>
+    // ========================================
+    // Language Data
+    // ========================================
+
+    const languageData = {
+      name: 'Afroasiatic',
+      dates: [-6000, null],
+      children: [
+        {
+          name: 'Semitic',
+          dates: [-3500, null],
+          children: [
+            {
+              name: 'East Semitic',
+              dates: [-2500, -100],
+              children: [
+                { name: 'Akkadian', dates: [-2500, 100], tags: ['cuneiform'],
+                  dialects: ['Old Akkadian', 'Old Babylonian', 'Standard Babylonian', 'Neo-Assyrian', 'Neo-Babylonian'],
+                  scripts: ['cuneiform'],
+                  corpora: ['Code of Hammurabi', 'Epic of Gilgamesh', 'Amarna Letters', 'Enuma Elish']
+                },
+                { name: 'Eblaite', dates: [-2400, -2300], tags: ['cuneiform', 'fragmentary'] }
+              ]
+            },
+            {
+              name: 'Northwest Semitic',
+              dates: [-1500, null],
+              children: [
+                {
+                  name: 'Canaanite',
+                  dates: [-1500, 200],
+                  children: [
+                    { name: 'Hebrew', dates: [-1200, null], tags: ['living'],
+                      dialects: ['Biblical Hebrew', 'Mishnaic Hebrew', 'Medieval Hebrew', 'Modern Hebrew'],
+                      scripts: ['paleo-hebrew', 'hebrew-square'],
+                      corpora: ['Hebrew Bible', 'Dead Sea Scrolls', 'Mishnah', 'Siloam Inscription']
+                    },
+                    { name: 'Phoenician', dates: [-1200, 200], tags: ['extinct'],
+                      scripts: ['phoenician'],
+                      corpora: ['Ahiram Sarcophagus', 'Karatepe Inscription', 'Eshmunazar Inscription']
+                    },
+                    { name: 'Moabite', dates: [-900, -500], tags: ['extinct'],
+                      scripts: ['paleo-hebrew'],
+                      corpora: ['Mesha Stele']
+                    },
+                    { name: 'Ammonite', dates: [-900, -500], tags: ['extinct', 'fragmentary'] },
+                    { name: 'Edomite', dates: [-800, -400], tags: ['extinct', 'fragmentary'] }
+                  ]
+                },
+                { name: 'Ugaritic', dates: [-1400, -1200], tags: ['cuneiform', 'extinct'],
+                  scripts: ['ugaritic-cuneiform'],
+                  corpora: ['Baal Cycle', 'Aqhat Epic', 'Kirta Epic']
+                },
+                {
+                  name: 'Aramaic',
+                  dates: [-1100, null],
+                  children: [
+                    { name: 'Old Aramaic', dates: [-1100, -700], tags: ['epigraphic'],
+                      corpora: ['Tell Fekheriye', 'Zakkur Inscription', 'Sefire Treaties']
+                    },
+                    { name: 'Imperial Aramaic', dates: [-700, -300],
+                      corpora: ['Elephantine Papyri', 'Ezra', 'Daniel']
+                    },
+                    { name: 'Biblical Aramaic', dates: [-500, -200] },
+                    { name: 'Jewish Palestinian Aramaic', dates: [-200, 400],
+                      corpora: ['Palestinian Talmud', 'Targum Onkelos']
+                    },
+                    { name: 'Syriac', dates: [100, null], tags: ['living'],
+                      scripts: ['syriac-estrangela', 'syriac-serto'],
+                      corpora: ['Peshitta', 'Ephrem\'s Hymns', 'Acts of Thomas']
+                    },
+                    { name: 'Mandaic', dates: [200, null], tags: ['endangered'],
+                      scripts: ['mandaic']
+                    },
+                    { name: 'Neo-Aramaic', dates: [1600, null], tags: ['living', 'endangered'],
+                      dialects: ['Turoyo', 'Assyrian Neo-Aramaic', 'Chaldean Neo-Aramaic']
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              name: 'Arabic',
+              dates: [-400, null],
+              tags: ['living'],
+              children: [
+                { name: 'Old Arabic', dates: [-400, 200], tags: ['epigraphic'],
+                  scripts: ['nabataean', 'dadanitic'],
+                  corpora: ['Namara Inscription', 'Safaitic Inscriptions']
+                },
+                { name: 'Classical Arabic', dates: [600, null],
+                  scripts: ['arabic'],
+                  corpora: ['Quran', 'Pre-Islamic Poetry', 'Hadith Collections']
+                },
+                { name: 'Modern Standard Arabic', dates: [1800, null], tags: ['living'] },
+                {
+                  name: 'Dialectal Arabic',
+                  dates: [700, null],
+                  children: [
+                    { name: 'Levantine Arabic', dates: [700, null], tags: ['living'] },
+                    { name: 'Egyptian Arabic', dates: [700, null], tags: ['living'] },
+                    { name: 'Gulf Arabic', dates: [700, null], tags: ['living'] },
+                    { name: 'Maghrebi Arabic', dates: [700, null], tags: ['living'] }
+                  ]
+                }
+              ]
+            },
+            {
+              name: 'South Semitic',
+              dates: [-1000, null],
+              children: [
+                { name: 'Old South Arabian', dates: [-1000, 600], tags: ['extinct'],
+                  scripts: ['old-south-arabian'],
+                  corpora: ['Sabaean Inscriptions']
+                },
+                { name: 'Ge\'ez', dates: [-500, null], tags: ['liturgical'],
+                  scripts: ['geez'],
+                  corpora: ['Book of Enoch', 'Kebra Nagast']
+                },
+                { name: 'Amharic', dates: [1300, null], tags: ['living'],
+                  scripts: ['geez']
+                },
+                { name: 'Tigrinya', dates: [1200, null], tags: ['living'],
+                  scripts: ['geez']
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    // Sound changes in Semitic
+    const soundChanges = [
+      {
+        name: 'Canaanite Shift',
+        rule: '*ā > ō',
+        environment: 'In stressed syllables',
+        examples: ['*šalām > šālōm (Hebrew)', '*bayt > bēt (Hebrew)'],
+        affects: ['Hebrew', 'Phoenician', 'Moabite']
+      },
+      {
+        name: 'Begadkefat Spirantization',
+        rule: 'b, g, d, k, p, t > v, ɣ, ð, x, f, θ',
+        environment: 'After vowels (post-vocalic)',
+        examples: ['bayit [ˈbajit] vs. hab-bayit [habˈbajit]'],
+        affects: ['Hebrew', 'Aramaic']
+      },
+      {
+        name: 'Proto-Semitic Laryngeal Loss',
+        rule: '*ʕ, *ħ, *ʔ, *h > Ø or vowel change',
+        environment: 'Various positions (varies by language)',
+        examples: ['*ʕayn > ayn (some dialects)', '*rōʔš > rōš'],
+        affects: ['Neo-Aramaic', 'Some Arabic dialects']
+      },
+      {
+        name: 'Aramaic ś > s merger',
+        rule: '*ś > s',
+        environment: 'All positions',
+        examples: ['*śamš > šemšā (sun)', '*ʔarś > ʔarʕā (earth)'],
+        affects: ['Aramaic']
+      },
+      {
+        name: 'Arabic Emphasis Spread',
+        rule: 'Emphasis spreads through syllable',
+        environment: 'Adjacent to emphatic consonants',
+        examples: ['ṣabr̴ > [sˤɑbˤrˤ]'],
+        affects: ['Arabic']
+      }
+    ];
+
+    // Cognate sets
+    const cognates = [
+      {
+        meaning: 'peace, wholeness',
+        root: '*š-l-m',
+        words: [
+          { lang: 'Hebrew', word: 'שָׁלוֹם', translit: 'šālōm' },
+          { lang: 'Arabic', word: 'سَلَام', translit: 'salām' },
+          { lang: 'Aramaic', word: 'שְׁלָמָא', translit: 'šəlāmā' },
+          { lang: 'Akkadian', word: 'šalāmu', translit: 'šalāmu' },
+          { lang: 'Ugaritic', word: 'šlm', translit: 'šalāmu' }
+        ]
+      },
+      {
+        meaning: 'king',
+        root: '*m-l-k',
+        words: [
+          { lang: 'Hebrew', word: 'מֶלֶךְ', translit: 'melek' },
+          { lang: 'Arabic', word: 'مَلِك', translit: 'malik' },
+          { lang: 'Aramaic', word: 'מַלְכָּא', translit: 'malkā' },
+          { lang: 'Akkadian', word: 'malku', translit: 'malku' },
+          { lang: 'Ugaritic', word: 'mlk', translit: 'maliku' }
+        ]
+      },
+      {
+        meaning: 'house',
+        root: '*b-y-t',
+        words: [
+          { lang: 'Hebrew', word: 'בַּיִת', translit: 'bayit' },
+          { lang: 'Arabic', word: 'بَيْت', translit: 'bayt' },
+          { lang: 'Aramaic', word: 'בֵּיתָא', translit: 'bētā' },
+          { lang: 'Akkadian', word: 'bītu', translit: 'bītu' },
+          { lang: 'Ugaritic', word: 'bt', translit: 'bētu' }
+        ]
+      },
+      {
+        meaning: 'water',
+        root: '*m-y/w',
+        words: [
+          { lang: 'Hebrew', word: 'מַיִם', translit: 'mayim' },
+          { lang: 'Arabic', word: 'مَاء', translit: 'māʾ' },
+          { lang: 'Aramaic', word: 'מַיָּא', translit: 'mayyā' },
+          { lang: 'Akkadian', word: 'mû', translit: 'mû' },
+          { lang: 'Ugaritic', word: 'my', translit: 'mēyu' }
+        ]
+      },
+      {
+        meaning: 'god, deity',
+        root: '*ʔ-l',
+        words: [
+          { lang: 'Hebrew', word: 'אֵל', translit: 'ʔēl' },
+          { lang: 'Arabic', word: 'إِلٰه', translit: 'ʔilāh' },
+          { lang: 'Aramaic', word: 'אֱלָהָא', translit: 'ʔĕlāhā' },
+          { lang: 'Akkadian', word: 'ilu', translit: 'ilu' },
+          { lang: 'Ugaritic', word: 'ʔil', translit: 'ʔilu' }
+        ]
+      }
+    ];
+
+    // Script evolution for 'aleph'
+    const scriptEvolution = [
+      { glyph: '𓃾', label: 'Egyptian\nox head' },
+      { glyph: '𐤀', label: 'Proto-\nSinaitic' },
+      { glyph: '𐤀', label: 'Phoenician\n(ʾālep)' },
+      { glyph: 'א', label: 'Hebrew\n(alef)' },
+      { glyph: 'ا', label: 'Arabic\n(alif)' },
+      { glyph: 'Α', label: 'Greek\n(alpha)' },
+      { glyph: 'A', label: 'Latin\n(A)' }
+    ];
+
+    // ========================================
+    // State
+    // ========================================
+
+    const state = {
+      selectedLang: null,
+      expandedNodes: new Set(['Afroasiatic', 'Semitic', 'Northwest Semitic']),
+      view: 'tree',
+      zoom: 1,
+      pan: { x: 0, y: 0 }
+    };
+
+    // ========================================
+    // Render Language Tree
+    // ========================================
+
+    function renderLangTree(node, container, depth = 0) {
+      const div = document.createElement('div');
+      div.className = 'lang-node';
+      if (state.expandedNodes.has(node.name)) div.classList.add('expanded');
+      if (state.selectedLang === node.name) div.classList.add('selected');
+
+      const header = document.createElement('div');
+      header.className = 'lang-node-header';
+
+      // Toggle
+      const toggle = document.createElement('span');
+      toggle.className = 'lang-toggle';
+      toggle.textContent = node.children ? (state.expandedNodes.has(node.name) ? '▼' : '▶') : '';
+      header.appendChild(toggle);
+
+      // Name
+      const name = document.createElement('span');
+      name.className = 'lang-name';
+      name.textContent = node.name;
+      header.appendChild(name);
+
+      // Date range
+      if (node.dates) {
+        const date = document.createElement('span');
+        date.className = 'lang-date';
+        date.textContent = formatDateRange(node.dates);
+        header.appendChild(date);
+      }
+
+      // Tags
+      if (node.tags) {
+        node.tags.forEach(tag => {
+          const tagEl = document.createElement('span');
+          tagEl.className = `lang-tag ${tag}`;
+          tagEl.textContent = tag;
+          header.appendChild(tagEl);
+        });
+      }
+
+      div.appendChild(header);
+
+      // Children
+      if (node.children) {
+        const children = document.createElement('div');
+        children.className = 'lang-children';
+        node.children.forEach(child => renderLangTree(child, children, depth + 1));
+        div.appendChild(children);
+      }
+
+      // Events
+      header.addEventListener('click', () => {
+        if (node.children) {
+          if (state.expandedNodes.has(node.name)) {
+            state.expandedNodes.delete(node.name);
+          } else {
+            state.expandedNodes.add(node.name);
+          }
+        }
+        state.selectedLang = node.name;
+        render();
+      });
+
+      container.appendChild(div);
+    }
+
+    function formatDateRange([start, end]) {
+      const formatYear = y => {
+        if (y === null) return 'present';
+        if (y < 0) return `${Math.abs(y)} BCE`;
+        return `${y} CE`;
+      };
+      return `${formatYear(start)}–${formatYear(end)}`;
+    }
+
+    // ========================================
+    // Find Language Node
+    // ========================================
+
+    function findLang(name, node = languageData) {
+      if (node.name === name) return node;
+      if (node.children) {
+        for (const child of node.children) {
+          const found = findLang(name, child);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    // ========================================
+    // Info Panel
+    // ========================================
+
+    function renderInfoPanel() {
+      const panel = document.getElementById('info-panel');
+      const lang = findLang(state.selectedLang);
+
+      if (!lang) {
+        panel.innerHTML = '<div class="info-card"><div style="color: #666; font-size: 12px;">Select a language from the tree</div></div>';
+        return;
+      }
+
+      let html = `<div class="info-card">
+        <div class="info-title">${lang.name}</div>
+        <div class="info-row">
+          <span class="info-label">Period</span>
+          <span class="info-value">${formatDateRange(lang.dates || [-3000, null])}</span>
+        </div>`;
+
+      if (lang.dialects) {
+        html += `<div class="info-row">
+          <span class="info-label">Dialects</span>
+          <span class="info-value">${lang.dialects.length}</span>
+        </div>`;
+      }
+
+      if (lang.scripts) {
+        html += `<div class="info-row">
+          <span class="info-label">Scripts</span>
+          <span class="info-value">${lang.scripts.join(', ')}</span>
+        </div>`;
+      }
+
+      if (lang.tags) {
+        html += `<div class="info-row">
+          <span class="info-label">Status</span>
+          <span class="info-value">${lang.tags.join(', ')}</span>
+        </div>`;
+      }
+
+      html += '</div>';
+
+      if (lang.dialects) {
+        html += '<div class="section-title" style="margin-top: 15px;">Dialects</div>';
+        lang.dialects.forEach(d => {
+          html += `<div style="padding: 4px 8px; font-size: 12px; color: #aaa;">• ${d}</div>`;
+        });
+      }
+
+      panel.innerHTML = html;
+    }
+
+    // ========================================
+    // Corpus List
+    // ========================================
+
+    function renderCorpusList() {
+      const list = document.getElementById('corpus-list');
+      const lang = findLang(state.selectedLang);
+
+      if (!lang || !lang.corpora) {
+        list.innerHTML = '<div style="color: #666; font-size: 11px;">No corpora for selection</div>';
+        return;
+      }
+
+      list.innerHTML = lang.corpora.map(corpus => `
+        <div class="corpus-item">
+          <div class="corpus-title">${corpus}</div>
+          <div class="corpus-meta">${lang.name}</div>
+        </div>
+      `).join('');
+    }
+
+    // ========================================
+    // Script Evolution
+    // ========================================
+
+    function renderScriptEvolution() {
+      const container = document.getElementById('script-evolution');
+      container.innerHTML = scriptEvolution.map((stage, i) => `
+        ${i > 0 ? '<span class="script-arrow">→</span>' : ''}
+        <div class="script-stage">
+          <div class="script-glyph">${stage.glyph}</div>
+          <div class="script-label">${stage.label.replace('\n', '<br>')}</div>
+        </div>
+      `).join('');
+    }
+
+    // ========================================
+    // Timeline
+    // ========================================
+
+    function renderTimeline() {
+      const container = document.getElementById('timeline');
+      const minYear = -3000;
+      const maxYear = 2000;
+      const range = maxYear - minYear;
+
+      let html = '<div class="timeline-axis">';
+
+      // Ticks
+      for (let year = -3000; year <= 2000; year += 500) {
+        const left = ((year - minYear) / range) * 100;
+        html += `<div class="timeline-tick" style="left: ${left}%; height: ${year % 1000 === 0 ? 15 : 8}px;"></div>`;
+        if (year % 1000 === 0) {
+          html += `<div class="timeline-label" style="left: ${left}%;">${year < 0 ? `${-year} BCE` : `${year} CE`}</div>`;
+        }
+      }
+
+      html += '</div>';
+
+      // Language bars
+      const colors = {
+        'Akkadian': '#8866aa',
+        'Hebrew': '#66aa88',
+        'Phoenician': '#aa8866',
+        'Aramaic': '#6688aa',
+        'Arabic': '#88aa66',
+        'Ugaritic': '#aa6688',
+        'Syriac': '#8888aa'
+      };
+
+      const langs = ['Akkadian', 'Hebrew', 'Phoenician', 'Ugaritic', 'Aramaic', 'Arabic', 'Syriac'];
+      let row = 0;
+
+      langs.forEach(name => {
+        const lang = findLang(name);
+        if (lang && lang.dates) {
+          const [start, end] = lang.dates;
+          const endYear = end || 2025;
+          const left = ((start - minYear) / range) * 100;
+          const width = ((endYear - start) / range) * 100;
+          const top = 5 + row * 18;
+          const color = colors[name] || '#666';
+
+          html += `<div class="timeline-bar" style="left: ${left}%; width: ${width}%; top: ${top}px; background: ${color};">
+            <span class="timeline-bar-label">${name}</span>
+          </div>`;
+          row++;
+        }
+      });
+
+      container.innerHTML = html;
+    }
+
+    // ========================================
+    // Cognates View
+    // ========================================
+
+    function renderCognatesView() {
+      const mainArea = document.querySelector('.main-area');
+      const canvas = document.getElementById('canvas');
+      canvas.style.display = 'none';
+
+      let html = '<div style="padding: 20px; overflow: auto; height: 100%;">';
+      html += '<div style="max-width: 600px; margin: 0 auto;">';
+
+      cognates.forEach(set => {
+        html += `<div style="margin-bottom: 20px;">
+          <div style="font-size: 14px; color: #c9a87c; margin-bottom: 8px;">
+            ${set.root} — "${set.meaning}"
+          </div>
+          <div class="cognate-list">`;
+
+        set.words.forEach(w => {
+          const rtl = ['Hebrew', 'Arabic', 'Aramaic'].includes(w.lang);
+          html += `<div class="cognate-item">
+            <span class="cognate-lang">${w.lang}</span>
+            <span class="cognate-word" style="${rtl ? 'direction: rtl;' : ''}">${w.word}</span>
+            <span class="cognate-meaning">${w.translit}</span>
+          </div>`;
+        });
+
+        html += '</div></div>';
+      });
+
+      html += '</div></div>';
+
+      // Remove any existing cognate view
+      const existing = mainArea.querySelector('.cognate-view');
+      if (existing) existing.remove();
+
+      const div = document.createElement('div');
+      div.className = 'cognate-view';
+      div.style.cssText = 'position: absolute; inset: 0; background: #0f0f18; z-index: 5;';
+      div.innerHTML = html;
+      mainArea.appendChild(div);
+    }
+
+    // ========================================
+    // Sound Changes View
+    // ========================================
+
+    function renderSoundChangesView() {
+      const mainArea = document.querySelector('.main-area');
+      const canvas = document.getElementById('canvas');
+      canvas.style.display = 'none';
+
+      let html = '<div style="padding: 20px; overflow: auto; height: 100%;">';
+      html += '<div style="max-width: 600px; margin: 0 auto;">';
+
+      soundChanges.forEach(change => {
+        html += `<div class="sound-change">
+          <div style="font-size: 12px; color: #888; margin-bottom: 4px;">${change.name}</div>
+          <div class="sound-change-rule">${change.rule}</div>
+          <div class="sound-change-env">${change.environment}</div>
+          <div class="sound-change-example">
+            ${change.examples.map(e => `<div>• ${e}</div>`).join('')}
+          </div>
+          <div style="margin-top: 6px;">
+            <span style="font-size: 10px; color: #666;">Affects: </span>
+            ${change.affects.map(a => `<span class="lang-tag">${a}</span>`).join(' ')}
+          </div>
+        </div>`;
+      });
+
+      html += '</div></div>';
+
+      const existing = mainArea.querySelector('.sound-view');
+      if (existing) existing.remove();
+
+      const div = document.createElement('div');
+      div.className = 'sound-view';
+      div.style.cssText = 'position: absolute; inset: 0; background: #0f0f18; z-index: 5;';
+      div.innerHTML = html;
+      mainArea.appendChild(div);
+    }
+
+    // ========================================
+    // Canvas (Tree Visualization)
+    // ========================================
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height - 80; // Account for timeline
+    }
+
+    function renderCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Simple radial tree layout
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+
+      ctx.fillStyle = '#1a1a28';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#c9a87c';
+      ctx.font = '10px SF Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText('Semitic', cx, cy + 4);
+
+      // Draw branches
+      const branches = [
+        { name: 'East Semitic', angle: -2.5 },
+        { name: 'NW Semitic', angle: -1.5 },
+        { name: 'Arabic', angle: -0.3 },
+        { name: 'South Semitic', angle: 0.8 }
+      ];
+
+      branches.forEach((b, i) => {
+        const dist = 100;
+        const x = cx + Math.cos(b.angle) * dist;
+        const y = cy + Math.sin(b.angle) * dist;
+
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        ctx.fillStyle = '#252535';
+        ctx.beginPath();
+        ctx.arc(x, y, 15, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#aaa';
+        ctx.fillText(b.name, x, y + 4);
+      });
+    }
+
+    // ========================================
+    // Main Render
+    // ========================================
+
+    function render() {
+      // Clear any overlay views
+      const mainArea = document.querySelector('.main-area');
+      mainArea.querySelectorAll('.cognate-view, .sound-view').forEach(el => el.remove());
+
+      // Render tree
+      const treeContainer = document.getElementById('lang-tree');
+      treeContainer.innerHTML = '';
+      renderLangTree(languageData, treeContainer);
+
+      // Render based on view
+      const canvas = document.getElementById('canvas');
+
+      switch (state.view) {
+        case 'tree':
+          canvas.style.display = 'block';
+          renderCanvas();
+          break;
+        case 'timeline':
+          canvas.style.display = 'block';
+          renderCanvas();
+          break;
+        case 'cognates':
+          renderCognatesView();
+          break;
+        case 'sounds':
+          renderSoundChangesView();
+          break;
+      }
+
+      renderTimeline();
+      renderInfoPanel();
+      renderCorpusList();
+      renderScriptEvolution();
+    }
+
+    // ========================================
+    // Event Handlers
+    // ========================================
+
+    document.querySelectorAll('.view-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        state.view = tab.dataset.view;
+        render();
+      });
+    });
+
+    document.getElementById('search').addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      // Simple search - expand matching nodes
+      function searchNode(node) {
+        const matches = node.name.toLowerCase().includes(query);
+        if (matches) state.expandedNodes.add(node.name);
+        if (node.children) {
+          node.children.forEach(child => {
+            if (searchNode(child)) {
+              state.expandedNodes.add(node.name);
+              return true;
+            }
+          });
+        }
+        return matches;
+      }
+      if (query.length >= 2) {
+        searchNode(languageData);
+        render();
+      }
+    });
+
+    // ========================================
+    // Initialize
+    // ========================================
+
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      render();
+    });
+
+    resizeCanvas();
+    render();
+  </script>
+</body>
+</html>

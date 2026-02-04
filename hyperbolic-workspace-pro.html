@@ -1,0 +1,3706 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Hyperbolic Workspace Pro</title>
+  <style>
+/*
+ * HYPERBOLIC WORKSPACE PRO
+ * ═══════════════════════════════════════════════════════════════════════════
+ * A comprehensive hyperbolic navigation interface for knowledge management.
+ *
+ * USER STORIES IMPLEMENTED:
+ *
+ * 1. EXPLORER - Navigate large hierarchies without losing context
+ *    - Hyperbolic fish-eye: exponential space near boundary
+ *    - Smooth geodesic transitions with momentum
+ *    - Semantic zoom: labels appear/hide based on importance
+ *    - Breadcrumb navigation with clickable ancestors
+ *    - Minimap with viewport indicator
+ *    - History stack with back/forward
+ *
+ * 2. SEARCHER - Find specific nodes quickly
+ *    - Command palette with fuzzy search (⌘K)
+ *    - Real-time filtering by name/type/tag
+ *    - Search results with keyboard navigation
+ *    - Recent searches memory
+ *    - Highlight matches in results
+ *
+ * 3. ANALYST - Understand relationships and distances
+ *    - Path finding between any two nodes
+ *    - Hyperbolic distance measurement
+ *    - Geodesic visualization
+ *    - Multi-select comparison
+ *    - Node statistics panel
+ *    - Cluster detection
+ *
+ * 4. CURATOR - Bookmark and organize important nodes
+ *    - Pin nodes (Shift+click)
+ *    - Color-coded collections
+ *    - Quick jump menu
+ *    - Drag to reorder
+ *    - Persistent storage (localStorage)
+ *
+ * 5. POWER USER - Efficient keyboard-driven workflow
+ *    - Vim-style navigation (hjkl)
+ *    - Command palette for all actions
+ *    - Customizable shortcuts
+ *    - Tab through siblings
+ *    - Quick space switching (1-4)
+ *
+ * 6. PRESENTER - Share and present views
+ *    - Focus mode (F key)
+ *    - URL state encoding
+ *    - Screenshot export
+ *    - Animated transitions
+ */
+
+:root {
+  --bg-base: #050608;
+  --bg-surface: #0a0c10;
+  --bg-elevated: #0f1218;
+  --bg-overlay: rgba(10,12,16,.95);
+
+  --border-subtle: rgba(255,255,255,.04);
+  --border-default: rgba(255,255,255,.08);
+  --border-strong: rgba(255,255,255,.12);
+  --border-focus: rgba(110,181,255,.4);
+
+  --text-primary: #f0f0f2;
+  --text-secondary: #a0a0a8;
+  --text-tertiary: #606068;
+  --text-disabled: #404048;
+
+  --accent-blue: #6eb5ff;
+  --accent-purple: #d2a8ff;
+  --accent-green: #7ee787;
+  --accent-orange: #ffb574;
+  --accent-pink: #ff9bce;
+  --accent-cyan: #79c0ff;
+  --accent-red: #ff7b7b;
+  --accent-yellow: #ffd666;
+  --accent-sand: #c9a87c;
+
+  --space-studies: var(--accent-purple);
+  --space-infra: var(--accent-green);
+  --space-github: var(--accent-blue);
+  --space-notes: var(--accent-orange);
+  --space-math: var(--accent-pink);
+  --space-langs: var(--accent-sand);
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.5);
+
+  --transition-fast: 100ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 400ms ease;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+
+  /* Canvas rendering (used by JS) */
+  --canvas-bg: #050608;
+  --canvas-grid: rgba(255,255,255,0.03);
+  --canvas-grid-major: rgba(255,255,255,0.08);
+  --canvas-edge: rgba(255,255,255,0.15);
+  --canvas-node-stroke: rgba(255,255,255,0.2);
+  --canvas-label: #f0f0f2;
+  --canvas-disk-border: rgba(255,255,255,0.1);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THEME: MINIMALIST (Bare-bones, grayscale, sharp lines)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="minimalist"] {
+  --bg-base: #ffffff;
+  --bg-surface: #fafafa;
+  --bg-elevated: #f5f5f5;
+  --bg-overlay: rgba(250,250,250,.98);
+
+  --border-subtle: #e0e0e0;
+  --border-default: #c0c0c0;
+  --border-strong: #909090;
+  --border-focus: #404040;
+
+  --text-primary: #1a1a1a;
+  --text-secondary: #505050;
+  --text-tertiary: #808080;
+  --text-disabled: #b0b0b0;
+
+  /* All accents become grayscale */
+  --accent-blue: #404040;
+  --accent-purple: #505050;
+  --accent-green: #606060;
+  --accent-orange: #505050;
+  --accent-pink: #606060;
+  --accent-cyan: #505050;
+  --accent-red: #303030;
+  --accent-yellow: #707070;
+  --accent-sand: #606060;
+
+  --space-studies: #404040;
+  --space-infra: #505050;
+  --space-github: #606060;
+  --space-notes: #505050;
+  --space-math: #404040;
+  --space-langs: #606060;
+
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+
+  --transition-fast: 0ms;
+  --transition-normal: 50ms linear;
+  --transition-slow: 100ms linear;
+
+  /* Canvas */
+  --canvas-bg: #ffffff;
+  --canvas-grid: #e8e8e8;
+  --canvas-grid-major: #d0d0d0;
+  --canvas-edge: #606060;
+  --canvas-node-stroke: #303030;
+  --canvas-label: #1a1a1a;
+  --canvas-disk-border: #404040;
+}
+
+/* Minimalist-specific overrides */
+[data-theme="minimalist"] .dock {
+  border-right: 2px solid #303030;
+}
+
+[data-theme="minimalist"] .panel {
+  border-left: 2px solid #303030;
+}
+
+[data-theme="minimalist"] .dock-item.active::before {
+  border-radius: 0;
+}
+
+[data-theme="minimalist"] .toggle {
+  border-radius: 0;
+}
+
+[data-theme="minimalist"] .toggle::before {
+  border-radius: 0;
+}
+
+[data-theme="minimalist"] .panel-tab {
+  border-radius: 0;
+}
+
+[data-theme="minimalist"] .action-btn {
+  border-radius: 0;
+  border: 1px solid #606060;
+}
+
+[data-theme="minimalist"] .minimap {
+  border-radius: 0;
+  border: 2px solid #303030;
+}
+
+[data-theme="minimalist"] .topbar {
+  border-radius: 0;
+}
+
+[data-theme="minimalist"] .breadcrumb-chip {
+  border-radius: 0;
+  border: 1px solid #808080;
+}
+
+[data-theme="minimalist"] .main::before {
+  display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THEME: SKEUOMORPHIC (Rich, textured, physical, detailed)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="skeuomorphic"] {
+  --bg-base: #1a1612;
+  --bg-surface: linear-gradient(180deg, #2a2420 0%, #1e1a16 100%);
+  --bg-elevated: linear-gradient(180deg, #3a3430 0%, #2a2620 100%);
+  --bg-overlay: rgba(30,26,22,.97);
+
+  --border-subtle: rgba(180,160,120,.15);
+  --border-default: rgba(180,160,120,.25);
+  --border-strong: rgba(200,180,140,.35);
+  --border-focus: rgba(255,200,100,.6);
+
+  --text-primary: #f5e8d8;
+  --text-secondary: #c8b8a0;
+  --text-tertiary: #9a8a70;
+  --text-disabled: #685840;
+
+  /* Rich, saturated accents */
+  --accent-blue: #5090d0;
+  --accent-purple: #a070c0;
+  --accent-green: #50a060;
+  --accent-orange: #d08040;
+  --accent-pink: #c06080;
+  --accent-cyan: #40a0b0;
+  --accent-red: #c04040;
+  --accent-yellow: #c0a030;
+  --accent-sand: #b09060;
+
+  --space-studies: #a070c0;
+  --space-infra: #50a060;
+  --space-github: #5090d0;
+  --space-notes: #d08040;
+  --space-math: #c06080;
+  --space-langs: #b09060;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  --shadow-sm: 0 2px 4px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,.6), 0 4px 8px rgba(0,0,0,.5), inset 0 2px 0 rgba(255,255,255,.1);
+
+  --transition-fast: 150ms cubic-bezier(.4,0,.2,1);
+  --transition-normal: 300ms cubic-bezier(.4,0,.2,1);
+  --transition-slow: 500ms cubic-bezier(.4,0,.2,1);
+
+  /* Canvas */
+  --canvas-bg: #1a1612;
+  --canvas-grid: rgba(180,160,120,0.06);
+  --canvas-grid-major: rgba(180,160,120,0.12);
+  --canvas-edge: rgba(200,180,140,0.25);
+  --canvas-node-stroke: rgba(255,220,160,0.4);
+  --canvas-label: #f5e8d8;
+  --canvas-disk-border: rgba(200,180,140,0.3);
+}
+
+/* Skeuomorphic-specific overrides */
+[data-theme="skeuomorphic"] .dock {
+  background: linear-gradient(180deg, #2a2420 0%, #1e1a16 100%);
+  border-right: 1px solid rgba(180,160,120,.2);
+  box-shadow: inset -1px 0 0 rgba(255,255,255,.03), 2px 0 8px rgba(0,0,0,.3);
+}
+
+[data-theme="skeuomorphic"] .dock-item {
+  background: linear-gradient(180deg, rgba(60,50,40,.3) 0%, rgba(40,30,20,.3) 100%);
+  border: 1px solid rgba(180,160,120,.1);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 1px 2px rgba(0,0,0,.2);
+}
+
+[data-theme="skeuomorphic"] .dock-item:hover {
+  background: linear-gradient(180deg, rgba(80,70,50,.4) 0%, rgba(50,40,30,.4) 100%);
+  border-color: rgba(180,160,120,.2);
+}
+
+[data-theme="skeuomorphic"] .dock-item.active {
+  background: linear-gradient(180deg, rgba(100,80,50,.5) 0%, rgba(60,50,30,.5) 100%);
+  border-color: rgba(200,180,140,.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 2px 4px rgba(0,0,0,.3);
+}
+
+[data-theme="skeuomorphic"] .panel {
+  background: linear-gradient(180deg, #2a2420 0%, #1e1a16 100%);
+  border-left: 1px solid rgba(180,160,120,.2);
+  box-shadow: inset 1px 0 0 rgba(255,255,255,.03), -2px 0 8px rgba(0,0,0,.3);
+}
+
+[data-theme="skeuomorphic"] .panel-tab {
+  background: linear-gradient(180deg, rgba(60,50,40,.4) 0%, rgba(40,30,20,.4) 100%);
+  border: 1px solid rgba(180,160,120,.15);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+[data-theme="skeuomorphic"] .panel-tab.active {
+  background: linear-gradient(180deg, rgba(80,70,50,.6) 0%, rgba(50,40,30,.6) 100%);
+  border-color: rgba(200,180,140,.25);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 2px 4px rgba(0,0,0,.2);
+}
+
+[data-theme="skeuomorphic"] .toggle {
+  background: linear-gradient(180deg, #1a1612 0%, #0f0d0a 100%);
+  border: 1px solid rgba(180,160,120,.2);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.4);
+}
+
+[data-theme="skeuomorphic"] .toggle.on {
+  background: linear-gradient(180deg, #50a060 0%, #408050 100%);
+  border-color: rgba(100,180,100,.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 0 8px rgba(80,160,80,.3);
+}
+
+[data-theme="skeuomorphic"] .toggle::before {
+  background: linear-gradient(180deg, #e8e0d0 0%, #c8c0b0 100%);
+  box-shadow: 0 2px 4px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.5);
+}
+
+[data-theme="skeuomorphic"] .action-btn {
+  background: linear-gradient(180deg, rgba(80,70,50,.5) 0%, rgba(50,40,30,.5) 100%);
+  border: 1px solid rgba(180,160,120,.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 4px rgba(0,0,0,.2);
+}
+
+[data-theme="skeuomorphic"] .action-btn:hover {
+  background: linear-gradient(180deg, rgba(100,90,60,.6) 0%, rgba(70,60,40,.6) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 3px 6px rgba(0,0,0,.3);
+}
+
+[data-theme="skeuomorphic"] .action-btn:active {
+  background: linear-gradient(180deg, rgba(50,40,30,.6) 0%, rgba(80,70,50,.6) 100%);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.3);
+}
+
+[data-theme="skeuomorphic"] .minimap {
+  background: linear-gradient(180deg, rgba(30,26,22,.9) 0%, rgba(20,16,12,.9) 100%);
+  border: 2px solid rgba(180,160,120,.25);
+  box-shadow: inset 0 0 20px rgba(0,0,0,.5), 0 4px 12px rgba(0,0,0,.4);
+}
+
+[data-theme="skeuomorphic"] .topbar {
+  background: linear-gradient(180deg, rgba(40,36,30,.9) 0%, rgba(30,26,20,.9) 100%);
+  border: 1px solid rgba(180,160,120,.15);
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+
+[data-theme="skeuomorphic"] .breadcrumb-chip {
+  background: linear-gradient(180deg, rgba(70,60,45,.6) 0%, rgba(50,40,30,.6) 100%);
+  border: 1px solid rgba(180,160,120,.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+[data-theme="skeuomorphic"] .command-palette {
+  background: linear-gradient(180deg, #2a2420 0%, #1e1a16 100%);
+  border: 2px solid rgba(180,160,120,.3);
+  box-shadow: 0 8px 32px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+[data-theme="skeuomorphic"] .command-input {
+  background: linear-gradient(180deg, #1a1612 0%, #0f0d0a 100%);
+  border: 1px solid rgba(180,160,120,.2);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.3);
+}
+
+[data-theme="skeuomorphic"] .main::before {
+  background: radial-gradient(ellipse at 50% 50%,
+    color-mix(in srgb, var(--space-color, var(--accent-sand)) 8%, transparent) 0%,
+    transparent 60%
+  );
+}
+
+/* Leather texture overlay for skeuomorphic */
+[data-theme="skeuomorphic"] .dock::after,
+[data-theme="skeuomorphic"] .panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+[data-theme="skeuomorphic"] .dock,
+[data-theme="skeuomorphic"] .panel {
+  position: relative;
+}
+
+/* Metal bezel effect for canvas in skeuomorphic */
+[data-theme="skeuomorphic"] .main {
+  box-shadow: inset 0 0 30px rgba(0,0,0,.4);
+}
+
+[data-theme="skeuomorphic"] #canvas {
+  box-shadow: inset 0 0 60px rgba(0,0,0,.3);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYOUT
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.app {
+  display: grid;
+  grid-template-columns: 56px 1fr 360px;
+  grid-template-rows: 1fr;
+  height: 100%;
+}
+
+.app.focus-mode {
+  grid-template-columns: 0 1fr 0;
+}
+.app.focus-mode .dock,
+.app.focus-mode .panel { display: none; }
+.app.focus-mode .topbar { opacity: 0; }
+.app.focus-mode:hover .topbar { opacity: 1; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DOCK (Left Sidebar)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.dock {
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  gap: 2px;
+  z-index: 100;
+}
+
+.dock-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 4px 8px;
+}
+
+.dock-section + .dock-section {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+.dock-item {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  color: var(--text-tertiary);
+}
+
+.dock-item:hover {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.dock-item.active {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.dock-item.active::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  width: 3px;
+  height: 20px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}
+
+.dock-item svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.75;
+}
+
+.dock-item .badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 8px;
+  height: 8px;
+  background: var(--accent-red);
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.dock-item .badge.count {
+  min-width: 16px;
+  height: 14px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  top: 2px;
+  right: 2px;
+}
+
+.dock-divider {
+  width: 24px;
+  height: 1px;
+  background: var(--border-default);
+  margin: 4px auto;
+  opacity: 0.5;
+}
+
+.dock-tooltip {
+  position: fixed;
+  left: 64px;
+  padding: 6px 10px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all var(--transition-fast);
+  z-index: 1000;
+  box-shadow: var(--shadow-md);
+}
+
+.dock-tooltip.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.dock-tooltip .shortcut {
+  margin-left: 8px;
+  padding: 2px 4px;
+  background: var(--bg-base);
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.dock-spacer { flex: 1; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAIN CANVAS AREA
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.main {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+.main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%,
+    color-mix(in srgb, var(--space-color, var(--accent-blue)) 5%, transparent) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+#canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* Cursor states */
+.main[data-mode="pan"] #canvas { cursor: grab; }
+.main[data-mode="pan"].dragging #canvas { cursor: grabbing; }
+.main[data-mode="pan"].dragging-node #canvas { cursor: move; }
+.main[data-mode="select"] #canvas { cursor: crosshair; }
+.main[data-mode="measure"] #canvas { cursor: crosshair; }
+.main[data-mode="path"] #canvas { cursor: cell; }
+.main.hover-node #canvas { cursor: pointer; }
+.main.dragging-node #canvas { cursor: move !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOP BAR
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  background: linear-gradient(to bottom,
+    var(--bg-base) 0%,
+    color-mix(in srgb, var(--bg-base) 80%, transparent) 70%,
+    transparent 100%
+  );
+  transition: opacity var(--transition-normal);
+  z-index: 50;
+}
+
+.space-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 6px 8px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.space-indicator:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-elevated);
+}
+
+.space-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--space-color) 15%, transparent);
+  color: var(--space-color);
+}
+
+.space-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.space-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.space-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.space-meta {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  line-height: 1.2;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-left: 4px;
+  overflow: hidden;
+}
+
+.crumb {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crumb:hover {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.crumb.current {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.crumb-sep {
+  color: var(--text-disabled);
+  flex-shrink: 0;
+}
+
+.topbar-spacer { flex: 1; }
+
+.topbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.topbar-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.topbar-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.topbar-btn:active {
+  transform: scale(0.95);
+}
+
+.topbar-btn.active {
+  background: color-mix(in srgb, var(--accent-blue) 20%, transparent);
+  color: var(--accent-blue);
+}
+
+.topbar-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.topbar-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.topbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-subtle);
+  margin: 0 2px;
+}
+
+/* Search trigger */
+.search-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-width: 200px;
+}
+
+.search-trigger:hover {
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+.search-trigger svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.search-trigger .placeholder { flex: 1; }
+
+.search-trigger kbd {
+  padding: 2px 6px;
+  background: var(--bg-base);
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--text-disabled);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HUD OVERLAYS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.hud {
+  position: absolute;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.hud > * {
+  pointer-events: auto;
+}
+
+/* Metrics (bottom-left) */
+.hud-metrics {
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metric-row {
+  display: flex;
+  gap: 6px;
+}
+
+.metric {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  backdrop-filter: blur(8px);
+}
+
+.metric-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-tertiary);
+}
+
+.metric-label {
+  color: var(--text-tertiary);
+}
+
+.metric-value {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-value.accent { color: var(--accent-blue); }
+.metric-value.warm { color: var(--accent-orange); }
+.metric-value.success { color: var(--accent-green); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UNIFIED STATUS BAR
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.hud-status {
+  left: 16px;
+  right: 376px;
+  bottom: 16px;
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(12px);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.status-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-sep {
+  color: var(--text-disabled);
+  opacity: 0.5;
+}
+
+.status-spacer {
+  flex: 1;
+}
+
+.status-context {
+  color: var(--text-secondary);
+}
+
+.status-focus {
+  color: var(--accent);
+  font-weight: 600;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-depth {
+  color: var(--text-muted);
+}
+
+.status-selection {
+  display: none;
+  padding: 2px 8px;
+  background: var(--accent-dim);
+  border-radius: var(--radius-sm);
+}
+
+.status-selection.active {
+  display: flex;
+}
+
+.status-count {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.status-path {
+  display: none;
+  padding: 2px 8px;
+  background: rgba(255, 180, 116, 0.15);
+  border-radius: var(--radius-sm);
+  color: var(--accent-orange);
+}
+
+.status-path.active {
+  display: flex;
+}
+
+.path-arrow {
+  opacity: 0.5;
+}
+
+.path-dist {
+  font-weight: 600;
+}
+
+.status-action {
+  padding: 2px 6px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 10px;
+  border-radius: 3px;
+  transition: all var(--transition-fast);
+}
+
+.status-action:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.1);
+}
+
+.status-metrics {
+  color: var(--text-muted);
+}
+
+.status-zoom {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* View Controls (Minimaps + Projection Switcher) */
+.hud-view-controls {
+  right: 376px;
+  bottom: 56px;
+}
+
+.view-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-subtle);
+  border-bottom: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  backdrop-filter: blur(8px);
+}
+
+.view-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.view-label {
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-disabled);
+}
+
+.btn-group {
+  display: flex;
+  gap: 1px;
+  background: var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 1px;
+}
+
+.ctrl-btn {
+  width: 20px;
+  height: 18px;
+  border: none;
+  background: var(--bg-base);
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.ctrl-btn:first-child {
+  border-radius: 3px 0 0 3px;
+}
+
+.ctrl-btn:last-child {
+  border-radius: 0 3px 3px 0;
+}
+
+.ctrl-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.ctrl-btn.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.minimaps-row {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-overlay);
+}
+
+.minimap {
+  position: relative;
+  width: 100px;
+  height: 80px;
+  background: transparent;
+  border-right: 1px solid var(--border-subtle);
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+.minimap:last-child {
+  border-right: none;
+}
+
+.minimap:hover {
+  background: rgba(255,255,255,0.02);
+}
+
+.minimap canvas {
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.minimap-label {
+  position: absolute;
+  bottom: 4px;
+  left: 6px;
+  font-size: 8px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-disabled);
+  pointer-events: none;
+}
+
+/* Highlight active minimap on drag */
+.minimap.dragging {
+  background: var(--accent-dim);
+}
+
+/* (Old projection switcher removed - now integrated with view controls) */
+
+.proj-btn-old {
+  /* placeholder to maintain line numbers */
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.proj-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.proj-btn.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* Mode indicator (bottom-center) */
+.hud-modes {
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+}
+
+.mode-bar {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-md);
+}
+
+.mode-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.mode-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.mode-btn.active {
+  background: color-mix(in srgb, var(--accent-blue) 20%, transparent);
+  color: var(--accent-blue);
+}
+
+.mode-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Selection indicator */
+.hud-selection {
+  left: 16px;
+  top: 68px;
+}
+
+.selection-badge {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--accent-blue) 15%, var(--bg-overlay));
+  border: 1px solid color-mix(in srgb, var(--accent-blue) 30%, transparent);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--accent-blue);
+}
+
+.selection-badge.visible { display: flex; }
+
+.selection-badge .count {
+  font-weight: 600;
+}
+
+.selection-badge .actions {
+  display: flex;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.selection-badge button {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--accent-blue);
+  cursor: pointer;
+}
+
+.selection-badge button:hover {
+  background: rgba(255,255,255,.1);
+}
+
+/* Path info */
+.hud-path {
+  left: 16px;
+  top: 110px;
+}
+
+.path-badge {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--accent-purple) 10%, var(--bg-overlay));
+  border: 1px solid color-mix(in srgb, var(--accent-purple) 25%, transparent);
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  max-width: 240px;
+}
+
+.path-badge.visible { display: flex; }
+
+.path-endpoints {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.path-node {
+  padding: 3px 6px;
+  background: var(--bg-base);
+  border-radius: 4px;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.path-arrow {
+  color: var(--accent-purple);
+}
+
+.path-metrics {
+  display: flex;
+  gap: 12px;
+  color: var(--text-secondary);
+}
+
+.path-metrics span {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.path-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.path-actions button {
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.path-actions button:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RIGHT PANEL
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.panel {
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 100;
+}
+
+.panel-tabs {
+  display: flex;
+  padding: 8px 8px 0;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.panel-tab {
+  flex: 1;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.panel-tab:hover {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.panel-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-blue);
+}
+
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.panel-content::-webkit-scrollbar { width: 6px; }
+.panel-content::-webkit-scrollbar-track { background: transparent; }
+.panel-content::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 3px;
+}
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.panel-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.panel-section:last-child { border-bottom: none; }
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-disabled);
+}
+
+.section-action {
+  font-size: 11px;
+  color: var(--accent-blue);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.section-action:hover { color: var(--accent-cyan); }
+
+/* Node header */
+.node-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.node-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.node-avatar.pinned {
+  background: color-mix(in srgb, var(--accent-orange) 15%, transparent);
+  border-color: color-mix(in srgb, var(--accent-orange) 30%, transparent);
+}
+
+.node-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.node-name {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.node-type {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.node-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.badge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.badge.depth {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.badge.pinned {
+  background: color-mix(in srgb, var(--accent-orange) 15%, transparent);
+  color: var(--accent-orange);
+}
+
+/* Properties */
+.props-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.prop-card {
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.prop-card.full { grid-column: 1 / -1; }
+
+.prop-label {
+  font-size: 10px;
+  color: var(--text-disabled);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.prop-value {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.prop-value.mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.prop-value.small {
+  font-size: 12px;
+}
+
+/* Tags */
+.tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  cursor: default;
+}
+
+/* Content/Notes */
+.content-display {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 40px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.content-display .empty-hint {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.content-editor {
+  width: 100%;
+  min-height: 80px;
+  max-height: 200px;
+  padding: 10px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.content-editor:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+/* Mode indicator overlay */
+.mode-indicator {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: none;
+  z-index: 100;
+  animation: slideIn 0.2s ease;
+}
+
+.mode-indicator.visible {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mode-indicator .mode-icon {
+  font-size: 16px;
+}
+
+.mode-indicator.link { border-color: var(--accent-blue); }
+.mode-indicator.reparent { border-color: var(--accent-green); }
+.mode-indicator.path { border-color: var(--accent-yellow); }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Actions */
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.action-btn {
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.action-btn:hover {
+  background: color-mix(in srgb, white 5%, var(--bg-elevated));
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.action-btn:active { transform: scale(0.98); }
+
+.action-btn.primary {
+  background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
+  border-color: color-mix(in srgb, var(--accent-blue) 30%, transparent);
+  color: var(--accent-blue);
+}
+
+.action-btn.primary:hover {
+  background: color-mix(in srgb, var(--accent-blue) 25%, transparent);
+}
+
+.action-btn.full { grid-column: 1 / -1; }
+
+.action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Related nodes list */
+.related-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.related-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.related-item:hover {
+  background: color-mix(in srgb, white 3%, var(--bg-elevated));
+  border-color: var(--border-default);
+}
+
+.related-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.related-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.related-name {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.related-meta {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.related-action {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--text-disabled);
+  opacity: 0;
+  transition: all var(--transition-fast);
+}
+
+.related-item:hover .related-action {
+  opacity: 1;
+  color: var(--text-secondary);
+}
+
+/* Bookmarks */
+.bookmark-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bookmark-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.bookmark-item:hover {
+  background: color-mix(in srgb, white 3%, var(--bg-elevated));
+}
+
+.bookmark-color {
+  width: 4px;
+  height: 24px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.bookmark-info { flex: 1; min-width: 0; }
+
+.bookmark-name {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bookmark-path {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bookmark-remove {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-disabled);
+  cursor: pointer;
+  opacity: 0;
+  transition: all var(--transition-fast);
+}
+
+.bookmark-item:hover .bookmark-remove { opacity: 1; }
+.bookmark-remove:hover { color: var(--accent-red); }
+
+/* Settings */
+
+/* Theme Selector */
+.theme-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.theme-option {
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border-subtle);
+  padding: 8px;
+  transition: all var(--transition-normal);
+  text-align: center;
+}
+
+.theme-option:hover {
+  border-color: var(--border-default);
+  background: var(--bg-elevated);
+}
+
+.theme-option.active {
+  border-color: var(--accent-blue);
+  background: color-mix(in srgb, var(--accent-blue) 10%, transparent);
+}
+
+.theme-preview {
+  width: 100%;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.tp-sidebar {
+  width: 12%;
+  height: 100%;
+}
+
+.tp-canvas {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tp-disk {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border-width: 2px;
+  border-style: solid;
+}
+
+.tp-panel {
+  width: 25%;
+  height: 100%;
+}
+
+/* Default theme preview */
+.theme-preview-default .tp-sidebar { background: #0a0c10; border-right: 1px solid rgba(255,255,255,.08); }
+.theme-preview-default .tp-canvas { background: #050608; }
+.theme-preview-default .tp-disk { border-color: rgba(110,181,255,.3); background: radial-gradient(circle, rgba(110,181,255,.1) 0%, transparent 70%); }
+.theme-preview-default .tp-panel { background: #0f1218; border-left: 1px solid rgba(255,255,255,.08); }
+
+/* Minimalist theme preview */
+.theme-preview-minimalist .tp-sidebar { background: #fafafa; border-right: 2px solid #303030; }
+.theme-preview-minimalist .tp-canvas { background: #ffffff; }
+.theme-preview-minimalist .tp-disk { border-color: #404040; border-radius: 50%; background: #f5f5f5; }
+.theme-preview-minimalist .tp-panel { background: #f5f5f5; border-left: 2px solid #303030; }
+
+/* Skeuomorphic theme preview */
+.theme-preview-skeuomorphic .tp-sidebar { background: linear-gradient(180deg, #2a2420, #1e1a16); border-right: 1px solid rgba(180,160,120,.2); }
+.theme-preview-skeuomorphic .tp-canvas { background: #1a1612; }
+.theme-preview-skeuomorphic .tp-disk { border-color: rgba(200,180,140,.4); background: radial-gradient(circle, rgba(180,160,120,.15) 0%, transparent 60%); box-shadow: inset 0 0 8px rgba(0,0,0,.3); }
+.theme-preview-skeuomorphic .tp-panel { background: linear-gradient(180deg, #2a2420, #1e1a16); border-left: 1px solid rgba(180,160,120,.2); }
+
+.theme-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.theme-desc {
+  font-size: 9px;
+  color: var(--text-tertiary);
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.setting-row + .setting-row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.setting-info { flex: 1; }
+
+.setting-label {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.setting-desc {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.toggle {
+  width: 40px;
+  height: 22px;
+  background: var(--bg-base);
+  border: 1px solid var(--border-default);
+  border-radius: 11px;
+  position: relative;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  flex-shrink: 0;
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 2px;
+  left: 2px;
+  background: var(--text-tertiary);
+  border-radius: 50%;
+  transition: all var(--transition-normal);
+}
+
+.toggle.on {
+  background: color-mix(in srgb, var(--accent-blue) 25%, transparent);
+  border-color: color-mix(in srgb, var(--accent-blue) 50%, transparent);
+}
+
+.toggle.on::after {
+  left: 20px;
+  background: var(--accent-blue);
+}
+
+/* Legend */
+.legend-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.legend-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.legend-label {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+/* Panel footer stats */
+.panel-footer {
+  padding: 12px 16px;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-subtle);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.stat-label {
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-disabled);
+  margin-top: 2px;
+}
+
+/* Empty state */
+.empty-state {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
+  color: var(--text-disabled);
+}
+
+.empty-state-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.empty-state-desc {
+  font-size: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMMAND PALETTE (MODAL)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.command-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+}
+
+.command-overlay.visible { display: flex; }
+
+.command-palette {
+  width: 560px;
+  max-height: 480px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.command-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.command-input-wrap svg {
+  width: 20px;
+  height: 20px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.command-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-size: 16px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.command-input::placeholder { color: var(--text-disabled); }
+
+.command-hint {
+  font-size: 11px;
+  color: var(--text-disabled);
+}
+
+.command-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.command-group {
+  margin-bottom: 8px;
+}
+
+.command-group-title {
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-disabled);
+}
+
+.command-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.command-item:hover,
+.command-item.selected {
+  background: var(--bg-elevated);
+}
+
+.command-item.selected {
+  background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
+}
+
+.command-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-base);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.command-item.selected .command-icon {
+  background: color-mix(in srgb, var(--accent-blue) 20%, transparent);
+  color: var(--accent-blue);
+}
+
+.command-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.command-title {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.command-title mark {
+  background: color-mix(in srgb, var(--accent-yellow) 30%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.command-desc {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.command-shortcut {
+  display: flex;
+  gap: 4px;
+}
+
+.command-shortcut kbd {
+  padding: 3px 6px;
+  background: var(--bg-base);
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--text-disabled);
+}
+
+.command-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOOLTIP
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.tooltip {
+  position: fixed;
+  padding: 10px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  z-index: 2000;
+  max-width: 240px;
+  box-shadow: var(--shadow-md);
+}
+
+.tooltip.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tooltip-icon {
+  font-size: 16px;
+}
+
+.tooltip-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.tooltip-props {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tooltip-key { color: var(--text-tertiary); }
+.tooltip-val { color: var(--text-secondary); font-weight: 500; }
+
+.tooltip-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.tooltip-tag {
+  padding: 2px 6px;
+  background: var(--bg-base);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CONTEXT MENU
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.context-menu {
+  position: fixed;
+  min-width: 180px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  z-index: 2000;
+  display: none;
+  box-shadow: var(--shadow-lg);
+}
+
+.context-menu.visible { display: block; }
+
+.context-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.context-item:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.context-item.danger:hover {
+  background: color-mix(in srgb, var(--accent-red) 15%, transparent);
+  color: var(--accent-red);
+}
+
+.context-icon {
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+
+.context-item:hover .context-icon { color: inherit; }
+
+.context-label { flex: 1; }
+
+.context-shortcut {
+  font-size: 10px;
+  color: var(--text-disabled);
+}
+
+.context-sep {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   KEYBOARD HINTS OVERLAY
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.keyboard-hints {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.8);
+  backdrop-filter: blur(8px);
+  z-index: 3000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.keyboard-hints.visible { display: flex; }
+
+.hints-card {
+  width: 600px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  box-shadow: var(--shadow-lg);
+}
+
+.hints-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.hints-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.hints-section h4 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-disabled);
+  margin-bottom: 12px;
+}
+
+.hints-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.hints-row + .hints-row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.hints-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.hints-keys {
+  display: flex;
+  gap: 4px;
+}
+
+.hints-keys kbd {
+  padding: 4px 8px;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.hints-close {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATIONS - Loopy, organic, varied durations & easing
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Basic utility animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Gentle breathing - for ambient activity indicators */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+/* Soft glow pulse - for focus/selection states */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 4px var(--accent), 0 0 8px transparent; }
+  50% { box-shadow: 0 0 8px var(--accent), 0 0 16px color-mix(in srgb, var(--accent) 30%, transparent); }
+}
+
+/* Orbit - subtle rotation for decorative elements */
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(2px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(2px) rotate(-360deg); }
+}
+
+/* Float - gentle vertical bob */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* Shimmer - loading/processing indicator */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Ripple - expanding ring */
+@keyframes ripple {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+/* Bounce settle - for newly added items */
+@keyframes bounceSettle {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.98); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Wiggle - subtle attention draw */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+}
+
+/* Border dash rotation - for active/processing borders */
+@keyframes dashRotate {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 20; }
+}
+
+/* Color cycle - subtle hue shift */
+@keyframes hueShift {
+  0%, 100% { filter: hue-rotate(0deg); }
+  50% { filter: hue-rotate(15deg); }
+}
+
+/* Utility classes */
+.loading {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+.breathing {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+.floating {
+  animation: float 4s ease-in-out infinite;
+}
+
+.glowing {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+.wiggling {
+  animation: wiggle 0.5s ease-in-out;
+}
+
+.settling {
+  animation: bounceSettle 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Active dock items breathe gently */
+.dock-item.active svg {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+/* Focus indicator glows */
+.ctrl-btn.active {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+/* Minimap viewport indicator orbits subtly when animating */
+.minimaps-row::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--accent);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app:not(.focus-mode) .minimaps-row::after {
+    animation: orbit 8s linear infinite;
+    opacity: 0.3;
+  }
+}
+
+/* Selection badge pulses when items selected */
+.status-selection:not(:empty) {
+  animation: breathe 2.5s ease-in-out infinite;
+}
+
+/* New nodes settle in */
+.node-new {
+  animation: bounceSettle 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Path mode has flowing dash animation */
+.mode-indicator.path {
+  position: relative;
+}
+.mode-indicator.path::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 2px dashed var(--accent-yellow);
+  border-radius: inherit;
+  animation: dashRotate 1s linear infinite;
+}
+
+/* Shimmer effect for loading states */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* Toast notifications float in */
+.toast {
+  animation: bounceSettle 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Panel tabs have subtle hover float */
+.panel-tab:hover:not(.active) {
+  animation: float 2s ease-in-out infinite;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE LAYOUT
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Mobile toggle buttons and backdrop - hidden on desktop */
+.mobile-toggle,
+.mobile-backdrop {
+  display: none;
+}
+
+.mobile-toggle {
+  position: fixed;
+  z-index: 1000;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-toggle:active {
+  transform: scale(0.95);
+  background: var(--bg-hover);
+}
+
+.mobile-toggle-dock {
+  top: 12px;
+  left: 12px;
+}
+
+.mobile-toggle-panel {
+  top: 12px;
+  right: 12px;
+}
+
+.mobile-toggle-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+  background: var(--bg-hover);
+}
+
+/* Mobile breakpoint */
+@media (max-width: 768px) {
+  /* Show mobile toggles */
+  .mobile-toggle {
+    display: flex;
+  }
+
+  /* App layout - single column, canvas fills screen */
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    grid-template-areas: "main";
+  }
+
+  /* Main area fills viewport */
+  .main {
+    grid-area: main;
+  }
+
+  /* Canvas container */
+  .canvas-container {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+  }
+
+  /* Dock - slides in from left as overlay */
+  .dock {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 70px;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 2px 0 20px rgba(0,0,0,0.5);
+  }
+
+  .dock.mobile-open {
+    transform: translateX(0);
+  }
+
+  /* Panel - slides in from right as overlay */
+  .panel {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: min(320px, 85vw);
+    z-index: 100;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: -2px 0 20px rgba(0,0,0,0.5);
+  }
+
+  .panel.mobile-open {
+    transform: translateX(0);
+  }
+
+  /* Backdrop when sidebars open */
+  .mobile-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-backdrop.visible {
+    display: block;
+  }
+
+  /* HUDs - reposition for mobile */
+  .hud-status {
+    top: auto;
+    bottom: 60px;
+    left: 12px;
+    right: 12px;
+    max-width: none;
+  }
+
+  .hud-view-controls {
+    top: auto;
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+  }
+
+  /* Simplify view controls for mobile */
+  .view-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .minimaps-row {
+    display: none; /* Hide minimaps on mobile - use gestures instead */
+  }
+
+  /* Make buttons larger for touch */
+  .ctrl-btn {
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 14px;
+  }
+
+  .action-btn {
+    min-height: 40px;
+    padding: 8px 16px;
+  }
+
+  /* Dock items larger for touch */
+  .dock-item {
+    width: 50px;
+    height: 50px;
+  }
+
+  .dock-item svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  /* Panel adjustments */
+  .panel-header {
+    padding: 12px;
+  }
+
+  .panel-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .panel-tab {
+    min-width: 80px;
+    padding: 10px 12px;
+  }
+
+  /* Toast positioning */
+  .toast-container {
+    bottom: 140px;
+    left: 12px;
+    right: 12px;
+  }
+
+  /* Context menu fullscreen on mobile */
+  .context-menu {
+    position: fixed;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    top: auto !important;
+    max-height: 60vh;
+    border-radius: 12px;
+  }
+
+  /* Tooltip as bottom sheet */
+  .tooltip {
+    position: fixed !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 140px !important;
+    top: auto !important;
+    transform: none !important;
+    max-width: none !important;
+  }
+
+  /* Hide keyboard shortcuts display */
+  [data-shortcut]::after {
+    display: none;
+  }
+
+  /* Focus mode - hide everything */
+  .app.focus-mode .mobile-toggle {
+    opacity: 0.3;
+  }
+
+  .app.focus-mode .mobile-toggle:hover,
+  .app.focus-mode .mobile-toggle:active {
+    opacity: 1;
+  }
+}
+
+/* Very small screens (phones in portrait) */
+@media (max-width: 480px) {
+  .hud-status {
+    font-size: 11px;
+  }
+
+  .status-section {
+    padding: 4px 6px;
+  }
+
+  .view-control {
+    gap: 4px;
+  }
+
+  .view-label {
+    display: none; /* Hide labels, just show buttons */
+  }
+
+  .ctrl-btn {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .panel {
+    width: 100vw;
+  }
+}
+
+/* Landscape phone - adjust HUD positions */
+@media (max-width: 768px) and (orientation: landscape) {
+  .hud-status {
+    bottom: 12px;
+    left: 60px;
+    right: 60px;
+  }
+
+  .hud-view-controls {
+    top: 12px;
+    bottom: auto;
+    left: auto;
+    right: 60px;
+    width: auto;
+  }
+
+  .mobile-toggle-dock {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .mobile-toggle-panel {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+}
+  </style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- Mobile toggle buttons -->
+  <button class="mobile-toggle mobile-toggle-dock" id="mobileToggleDock" aria-label="Open spaces menu">☰</button>
+  <button class="mobile-toggle mobile-toggle-panel" id="mobileTogglePanel" aria-label="Open details panel">≡</button>
+  <div class="mobile-backdrop" id="mobileBackdrop"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       DOCK (Left Sidebar)
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <nav class="dock" id="dock">
+    <div class="dock-section">
+      <div class="dock-item active" data-space="hyperbolic" data-tooltip="Hyperbolic Intro" data-shortcut="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/>
+          <path d="M12 2a15.3 15.3 0 0 0-4 10 15.3 15.3 0 0 0 4 10"/>
+          <line x1="2" y1="12" x2="22" y2="12"/>
+        </svg>
+      </div>
+      <div class="dock-item" data-space="embeddings" data-tooltip="Embeddings" data-shortcut="8">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="6" cy="6" r="3"/>
+          <circle cx="18" cy="6" r="3"/>
+          <circle cx="6" cy="18" r="3"/>
+          <circle cx="18" cy="18" r="3"/>
+          <circle cx="12" cy="12" r="2"/>
+          <line x1="8" y1="7" x2="11" y2="11"/>
+          <line x1="16" y1="7" x2="13" y2="11"/>
+          <line x1="8" y1="17" x2="11" y2="13"/>
+          <line x1="16" y1="17" x2="13" y2="13"/>
+        </svg>
+      </div>
+      <div class="dock-divider"></div>
+      <div class="dock-item" data-space="studies" data-tooltip="Studies" data-shortcut="1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+      </div>
+      <div class="dock-item" data-space="infra" data-tooltip="Infrastructure" data-shortcut="2">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <rect x="2" y="2" width="20" height="8" rx="2"/>
+          <rect x="2" y="14" width="20" height="8" rx="2"/>
+          <circle cx="6" cy="6" r="1" fill="currentColor"/>
+          <circle cx="6" cy="18" r="1" fill="currentColor"/>
+        </svg>
+        <span class="badge"></span>
+      </div>
+      <div class="dock-item" data-space="github" data-tooltip="GitHub Projects" data-shortcut="3">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+        </svg>
+      </div>
+      <div class="dock-item" data-space="notes" data-tooltip="Notes & Ideas" data-shortcut="4">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+      </div>
+      <div class="dock-item" data-space="math" data-tooltip="Formal Methods" data-shortcut="5">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M4 4h6v6H4z"/>
+          <path d="M14 4h6v6h-6z"/>
+          <path d="M4 14h6v6H4z"/>
+          <path d="M17 14v3h-3"/>
+          <path d="M14 20l6-6"/>
+        </svg>
+      </div>
+      <div class="dock-item" data-space="langs" data-tooltip="Languages" data-shortcut="6">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          <path d="M8 7h8"/>
+          <path d="M8 11h6"/>
+          <path d="M8 15h4"/>
+        </svg>
+      </div>
+      <div class="dock-item" data-space="ux" data-tooltip="Interface (UX)" data-shortcut="7">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="dock-section">
+      <div class="dock-item" data-action="add" data-tooltip="Add Node" data-shortcut="A">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="16"/>
+          <line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+      </div>
+      <div class="dock-item" data-action="path" data-tooltip="Measure Path" data-shortcut="P">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="dock-spacer"></div>
+
+    <div class="dock-section">
+      <div class="dock-item" data-action="focus-mode" data-tooltip="Focus Mode" data-shortcut="F">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+        </svg>
+      </div>
+      <div class="dock-item" data-action="keyboard-hints" data-tooltip="Keyboard Shortcuts" data-shortcut="?">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <rect x="2" y="4" width="20" height="16" rx="2"/>
+          <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/>
+        </svg>
+      </div>
+      <div class="dock-item" data-action="settings" data-tooltip="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Dock tooltip -->
+  <div class="dock-tooltip" id="dockTooltip">
+    <span class="label"></span>
+    <span class="shortcut"></span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       MAIN CANVAS
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <main class="main" id="main" data-mode="pan">
+    <canvas id="canvas"></canvas>
+
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="space-indicator" id="spaceIndicator">
+        <div class="space-icon" id="spaceIcon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+          </svg>
+        </div>
+        <div class="space-info">
+          <div class="space-name" id="spaceName">Studies</div>
+          <div class="space-meta" id="spaceMeta">24 nodes</div>
+        </div>
+      </div>
+
+      <nav class="breadcrumb" id="breadcrumb"></nav>
+
+      <div class="topbar-spacer"></div>
+
+      <div class="search-trigger" id="searchTrigger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <span class="placeholder">Search nodes...</span>
+        <kbd>⌘K</kbd>
+      </div>
+
+      <div class="topbar-group">
+        <button class="topbar-btn" id="btnBack" title="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+        </button>
+        <button class="topbar-btn" id="btnFwd" title="Forward">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </button>
+        <div class="topbar-divider"></div>
+        <button class="topbar-btn" id="btnHome" title="Home (H)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="topbar-group">
+        <button class="topbar-btn" id="btnZoomOut" title="Zoom out (-)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+            <line x1="8" y1="11" x2="14" y2="11"/>
+          </svg>
+        </button>
+        <button class="topbar-btn" id="btnZoomIn" title="Zoom in (+)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+            <line x1="11" y1="8" x2="11" y2="14"/>
+            <line x1="8" y1="11" x2="14" y2="11"/>
+          </svg>
+        </button>
+        <button class="topbar-btn" id="btnFit" title="Fit to view (0)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            <circle cx="12" cy="12" r="4"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- HUD: Metrics -->
+    <!-- Unified Status Bar (replaces scattered HUDs) -->
+    <div class="hud hud-status">
+      <div class="status-bar">
+        <!-- Context Section: Focus + Depth -->
+        <div class="status-section status-context">
+          <span class="status-focus" id="metricFocus">Home</span>
+          <span class="status-sep">·</span>
+          <span class="status-depth">d<span id="metricDepth">0</span></span>
+        </div>
+
+        <!-- Selection Section (conditional) -->
+        <div class="status-section status-selection" id="selectionBadge">
+          <span class="status-count"><span id="selCount">0</span> sel</span>
+          <button class="status-action" id="selPin" title="Pin selected">◎</button>
+          <button class="status-action" id="selClear" title="Clear">×</button>
+        </div>
+
+        <!-- Path Section (conditional) -->
+        <div class="status-section status-path" id="pathBadge">
+          <span id="pathStart">—</span>
+          <span class="path-arrow">→</span>
+          <span id="pathEnd">—</span>
+          <span class="status-sep">│</span>
+          <span class="path-dist"><span id="pathDist">0.00</span></span>
+          <button class="status-action" id="pathAnimate" title="Animate">▶</button>
+          <button class="status-action" id="pathClear" title="Clear">×</button>
+        </div>
+
+        <!-- Spacer -->
+        <div class="status-spacer"></div>
+
+        <!-- Metrics Section: Zoom + Distance -->
+        <div class="status-section status-metrics">
+          <span class="status-zoom" id="metricZoom">1.00</span>×
+          <span class="status-sep">·</span>
+          <span class="status-visible"><span id="metricVisible">0</span> vis</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD: View Controls (Minimaps + Projection) -->
+    <div class="hud hud-view-controls">
+      <!-- Header with orthogonal controls -->
+      <div class="view-header">
+        <div class="view-control">
+          <span class="view-label">Proj</span>
+          <div class="btn-group">
+            <button class="ctrl-btn active" data-projection="poincare" title="Poincaré">P</button>
+            <button class="ctrl-btn" data-projection="klein" title="Klein">K</button>
+            <button class="ctrl-btn" data-projection="halfplane" title="Half-plane">H</button>
+          </div>
+        </div>
+        <div class="view-control">
+          <span class="view-label">View</span>
+          <div class="btn-group">
+            <button class="ctrl-btn active" data-view="focus" title="Focus+Context">F</button>
+            <button class="ctrl-btn" data-view="overview" title="Overview">O</button>
+            <button class="ctrl-btn" data-view="tree" title="Tree">T</button>
+          </div>
+        </div>
+      </div>
+      <!-- Three diverse minimaps -->
+      <div class="minimaps-row">
+        <div class="minimap" data-model="poincare" title="Poincaré disk - conformal, angles correct">
+          <canvas id="minimap" width="100" height="80"></canvas>
+          <span class="minimap-label">Poincar&eacute;</span>
+        </div>
+        <div class="minimap" data-model="klein" title="Klein disk - geodesics straight">
+          <canvas id="minimap-klein" width="100" height="80"></canvas>
+          <span class="minimap-label">Klein</span>
+        </div>
+        <div class="minimap" data-model="tree" title="Tree layout - hierarchy view">
+          <canvas id="minimap-tree" width="100" height="80"></canvas>
+          <span class="minimap-label">Tree</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD: Mode bar -->
+    <div class="hud hud-modes">
+      <div class="mode-bar">
+        <button class="mode-btn active" data-mode="pan" title="Pan (V)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+          </svg>
+        </button>
+        <button class="mode-btn" data-mode="select" title="Select (S)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+          </svg>
+        </button>
+        <button class="mode-btn" data-mode="path" title="Measure Path (M)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mode indicator (shown during special modes) -->
+    <div class="mode-indicator" id="modeIndicator">
+      <span class="mode-icon">⌁</span>
+      <span class="mode-text">Link mode: click target node</span>
+      <kbd>Esc</kbd>
+    </div>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       RIGHT PANEL
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <aside class="panel">
+    <div class="panel-tabs">
+      <button class="panel-tab active" data-tab="details">Inspector</button>
+      <button class="panel-tab" data-tab="bookmarks">Navigate</button>
+      <button class="panel-tab" data-tab="settings">Prefs</button>
+    </div>
+
+    <div class="panel-content">
+      <!-- Details Tab -->
+      <div class="tab-panel active" id="tab-details">
+        <div class="panel-section">
+          <div class="node-header">
+            <div class="node-avatar" id="nodeAvatar">📚</div>
+            <div class="node-info">
+              <div class="node-name" id="nodeName">Studies</div>
+              <div class="node-type" id="nodeType">root</div>
+              <div class="node-badges" id="nodeBadges"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Properties</span>
+          </div>
+          <div class="props-grid" id="propsGrid"></div>
+        </div>
+
+        <div class="panel-section" id="tagsSection" style="display:none">
+          <div class="section-header">
+            <span class="section-title">Tags</span>
+          </div>
+          <div class="tags-wrap" id="tagsList"></div>
+        </div>
+
+        <div class="panel-section" id="contentSection">
+          <div class="section-header">
+            <span class="section-title">Notes</span>
+            <span class="section-action" id="editContent">Edit</span>
+          </div>
+          <div class="content-display" id="contentDisplay">
+            <span class="empty-hint">No notes. Click Edit to add.</span>
+          </div>
+          <textarea class="content-editor" id="contentEditor" placeholder="Add notes about this node..." style="display:none"></textarea>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Actions</span>
+          </div>
+          <div class="actions-grid">
+            <button class="action-btn primary" id="actCenter">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+              Center
+            </button>
+            <button class="action-btn" id="actPin">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/><circle cx="12" cy="12" r="3"/></svg>
+              Pin
+            </button>
+            <button class="action-btn" id="actParent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              Parent
+            </button>
+            <button class="action-btn" id="actExpand">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              Expand
+            </button>
+          </div>
+        </div>
+
+        <div class="panel-section" id="relatedSection">
+          <div class="section-header">
+            <span class="section-title">Connected</span>
+            <span class="section-action" id="showAllRelated">Show all</span>
+          </div>
+          <div class="related-list" id="relatedList"></div>
+        </div>
+      </div>
+
+      <!-- Bookmarks Tab -->
+      <div class="tab-panel" id="tab-bookmarks">
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Pinned Nodes</span>
+            <span class="section-action" id="clearAllPins">Clear all</span>
+          </div>
+          <div class="bookmark-list" id="pinnedList"></div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Recent</span>
+          </div>
+          <div class="bookmark-list" id="recentList"></div>
+        </div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div class="tab-panel" id="tab-settings">
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Theme</span>
+          </div>
+          <div class="theme-selector">
+            <div class="theme-option" data-theme="default">
+              <div class="theme-preview theme-preview-default">
+                <div class="tp-sidebar"></div>
+                <div class="tp-canvas"><div class="tp-disk"></div></div>
+                <div class="tp-panel"></div>
+              </div>
+              <div class="theme-name">Default</div>
+              <div class="theme-desc">Dark, colorful accents</div>
+            </div>
+            <div class="theme-option" data-theme="minimalist">
+              <div class="theme-preview theme-preview-minimalist">
+                <div class="tp-sidebar"></div>
+                <div class="tp-canvas"><div class="tp-disk"></div></div>
+                <div class="tp-panel"></div>
+              </div>
+              <div class="theme-name">Minimalist</div>
+              <div class="theme-desc">Grayscale, sharp lines</div>
+            </div>
+            <div class="theme-option" data-theme="skeuomorphic">
+              <div class="theme-preview theme-preview-skeuomorphic">
+                <div class="tp-sidebar"></div>
+                <div class="tp-canvas"><div class="tp-disk"></div></div>
+                <div class="tp-panel"></div>
+              </div>
+              <div class="theme-name">Skeuomorphic</div>
+              <div class="theme-desc">Rich, textured, physical</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Display</span>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Geodesic edges</div>
+              <div class="setting-desc">Draw true hyperbolic geodesics</div>
+            </div>
+            <div class="toggle on" data-setting="geodesics"></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Node labels</div>
+              <div class="setting-desc">Show names near nodes</div>
+            </div>
+            <div class="toggle on" data-setting="labels"></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Hyperbolic grid</div>
+              <div class="setting-desc">Show distance circles</div>
+            </div>
+            <div class="toggle" data-setting="grid"></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Depth coloring</div>
+              <div class="setting-desc">Color nodes by hierarchy level</div>
+            </div>
+            <div class="toggle on" data-setting="depthColors"></div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Animation</span>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Smooth transitions</div>
+              <div class="setting-desc">Animate camera movements</div>
+            </div>
+            <div class="toggle on" data-setting="animate"></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Momentum</div>
+              <div class="setting-desc">Inertia when panning</div>
+            </div>
+            <div class="toggle on" data-setting="momentum"></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Hover effects</div>
+              <div class="setting-desc">Highlight on hover</div>
+            </div>
+            <div class="toggle on" data-setting="hover"></div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Geometric Overlays</span>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Voronoi cells</div>
+              <div class="setting-desc">Hyperbolic Voronoi diagram</div>
+            </div>
+            <div class="toggle" data-setting="voronoi"></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Hyperbolic tiling</div>
+              <div class="setting-desc">{7,3} tessellation pattern</div>
+            </div>
+            <div class="toggle" data-setting="tiling"></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Parallel transport</div>
+              <div class="setting-desc">Vector transport on paths</div>
+            </div>
+            <div class="toggle" data-setting="transport"></div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Data</span>
+          </div>
+          <div class="actions-grid">
+            <button class="action-btn" id="btnExport">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export
+            </button>
+            <button class="action-btn" id="btnImport">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Import
+            </button>
+          </div>
+          <input type="file" id="importInput" accept=".json" style="display:none">
+        </div>
+
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-title">Depth Legend</span>
+          </div>
+          <div class="legend-grid" id="legend"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-footer">
+      <div class="stat">
+        <div class="stat-value" id="statNodes">0</div>
+        <div class="stat-label">Nodes</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statEdges">0</div>
+        <div class="stat-label">Edges</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statPinned">0</div>
+        <div class="stat-label">Pinned</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statDepth">0</div>
+        <div class="stat-label">Depth</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     COMMAND PALETTE
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="command-overlay" id="commandOverlay">
+  <div class="command-palette">
+    <div class="command-input-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="11" cy="11" r="8"/>
+        <path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input type="text" class="command-input" id="commandInput" placeholder="Search nodes, actions, settings...">
+      <span class="command-hint">esc to close</span>
+    </div>
+    <div class="command-results" id="commandResults"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     TOOLTIP
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="tooltip" id="tooltip">
+  <div class="tooltip-header">
+    <span class="tooltip-icon" id="tooltipIcon">📄</span>
+    <span class="tooltip-title" id="tooltipTitle">Node</span>
+  </div>
+  <div class="tooltip-props">
+    <div class="tooltip-row">
+      <span class="tooltip-key">Type</span>
+      <span class="tooltip-val" id="tooltipType">—</span>
+    </div>
+    <div class="tooltip-row">
+      <span class="tooltip-key">Depth</span>
+      <span class="tooltip-val" id="tooltipDepth">0</span>
+    </div>
+    <div class="tooltip-row">
+      <span class="tooltip-key">Children</span>
+      <span class="tooltip-val" id="tooltipChildren">0</span>
+    </div>
+  </div>
+  <div class="tooltip-tags" id="tooltipTags"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     CONTEXT MENU
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="context-menu" id="contextMenu">
+  <div class="context-item" data-action="focus">
+    <span class="context-icon">⌖</span>
+    <span class="context-label">Focus</span>
+    <span class="context-shortcut">Enter</span>
+  </div>
+  <div class="context-item" data-action="pin">
+    <span class="context-icon">◎</span>
+    <span class="context-label">Pin / Unpin</span>
+    <span class="context-shortcut">⇧P</span>
+  </div>
+  <div class="context-item" data-action="select-children">
+    <span class="context-icon">⊕</span>
+    <span class="context-label">Select children</span>
+  </div>
+  <div class="context-item" data-action="select-ancestors">
+    <span class="context-icon">↑</span>
+    <span class="context-label">Select ancestors</span>
+  </div>
+  <div class="context-sep"></div>
+  <div class="context-item" data-action="path-from">
+    <span class="context-icon">⤳</span>
+    <span class="context-label">Path from here</span>
+  </div>
+  <div class="context-item" data-action="path-to">
+    <span class="context-icon">⇢</span>
+    <span class="context-label">Path to here</span>
+  </div>
+  <div class="context-sep"></div>
+  <div class="context-item" data-action="copy">
+    <span class="context-icon">⎘</span>
+    <span class="context-label">Copy info</span>
+    <span class="context-shortcut">⌘C</span>
+  </div>
+  <div class="context-sep"></div>
+  <div class="context-item" data-action="rename">
+    <span class="context-icon">✎</span>
+    <span class="context-label">Rename</span>
+    <span class="context-shortcut">F2</span>
+  </div>
+  <div class="context-item" data-action="add-child">
+    <span class="context-icon">＋</span>
+    <span class="context-label">Add child node</span>
+  </div>
+  <div class="context-item" data-action="link-to">
+    <span class="context-icon">⌁</span>
+    <span class="context-label">Link to...</span>
+  </div>
+  <div class="context-item" data-action="reparent">
+    <span class="context-icon">↷</span>
+    <span class="context-label">Move to...</span>
+  </div>
+  <div class="context-item" data-action="set-action">
+    <span class="context-icon">⚡</span>
+    <span class="context-label">Set action...</span>
+  </div>
+  <div class="context-sep"></div>
+  <div class="context-item danger" data-action="hide">
+    <span class="context-icon">◌</span>
+    <span class="context-label">Hide node</span>
+  </div>
+  <div class="context-item danger" data-action="delete">
+    <span class="context-icon">✕</span>
+    <span class="context-label">Delete node</span>
+    <span class="context-shortcut">Del</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     KEYBOARD HINTS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="keyboard-hints" id="keyboardHints">
+  <div class="hints-card">
+    <div class="hints-title">Keyboard Shortcuts</div>
+    <div class="hints-grid">
+      <div class="hints-section">
+        <h4>Navigation (vim-style)</h4>
+        <div class="hints-row">
+          <span class="hints-desc">Parent</span>
+          <span class="hints-keys"><kbd>k</kbd> <kbd>↑</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">First child</span>
+          <span class="hints-keys"><kbd>j</kbd> <kbd>↓</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">Prev sibling</span>
+          <span class="hints-keys"><kbd>h</kbd> <kbd>←</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">Next sibling</span>
+          <span class="hints-keys"><kbd>l</kbd> <kbd>→</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">Go home</span>
+          <span class="hints-keys"><kbd>H</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">Back / Forward</span>
+          <span class="hints-keys"><kbd>⌘</kbd><kbd>[</kbd> <kbd>]</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">Zoom</span>
+          <span class="hints-keys"><kbd>+</kbd> <kbd>-</kbd> <kbd>0</kbd></span>
+        </div>
+      </div>
+      <div class="hints-section">
+        <h4>Selection</h4>
+        <div class="hints-row">
+          <span class="hints-desc">Multi-select</span>
+          <span class="hints-keys"><kbd>⌘</kbd><kbd>Click</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">Pin node</span>
+          <span class="hints-keys"><kbd>⇧</kbd><kbd>Click</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">Dismiss / Go up</span>
+          <span class="hints-keys"><kbd>Esc</kbd></span>
+        </div>
+      </div>
+      <div class="hints-section">
+        <h4>Modes</h4>
+        <div class="hints-row">
+          <span class="hints-desc">Pan mode</span>
+          <span class="hints-keys"><kbd>V</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">Select mode</span>
+          <span class="hints-keys"><kbd>S</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">Path mode</span>
+          <span class="hints-keys"><kbd>M</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">Focus mode</span>
+          <span class="hints-keys"><kbd>F</kbd></span>
+        </div>
+      </div>
+      <div class="hints-section">
+        <h4>Spaces</h4>
+        <div class="hints-row">
+          <span class="hints-desc">Studies</span>
+          <span class="hints-keys"><kbd>1</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">Infrastructure</span>
+          <span class="hints-keys"><kbd>2</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">GitHub</span>
+          <span class="hints-keys"><kbd>3</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">Notes</span>
+          <span class="hints-keys"><kbd>4</kbd></span>
+        </div>
+        <div class="hints-row">
+          <span class="hints-desc">Search</span>
+          <span class="hints-keys"><kbd>⌘</kbd><kbd>K</kbd></span>
+        </div>
+      </div>
+    </div>
+    <div class="hints-close">Press <kbd>?</kbd> or <kbd>Esc</kbd> to close</div>
+  </div>
+</div>
+
+<script src="hyperbolic-algebra.js"></script>
+<script src="hyperbolic-projections.js"></script>
+<script src="hyperbolic-compute.js"></script>
+<script src="lorentz-geometry.js"></script>
+<script src="hyperbolic-engine.js"></script>
+</body>
+</html>

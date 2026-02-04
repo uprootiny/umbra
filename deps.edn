@@ -1,0 +1,22 @@
+{:paths ["src"]
+
+ :deps
+ {org.clojure/clojure {:mvn/version "1.11.1"}
+  org.clojure/clojurescript {:mvn/version "1.11.132"}}
+
+ :aliases
+ {:dev
+  {:extra-deps
+   {thheller/shadow-cljs {:mvn/version "2.26.2"}
+    binaryage/devtools {:mvn/version "1.0.7"}}
+   :main-opts ["-m" "shadow.cljs.devtools.cli"]}
+
+  :test
+  {:extra-paths ["test"]
+   :extra-deps
+   {lambdaisland/kaocha {:mvn/version "1.87.1366"}}}
+
+  :build
+  {:extra-deps
+   {thheller/shadow-cljs {:mvn/version "2.26.2"}}
+   :main-opts ["-m" "shadow.cljs.devtools.cli" "release" "app"]}}}

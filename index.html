@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Umbra - Hyperbolic Geometry Platform</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --border: rgba(255,255,255,0.1);
+      --text: #e0e0e0;
+      --text-dim: #888;
+      --accent: #80ffff;
+      --accent-dim: rgba(128,255,255,0.2);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 2rem;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 300;
+      letter-spacing: 0.2em;
+      margin-bottom: 0.5rem;
+    }
+
+    h1 span { color: var(--accent); }
+
+    .tagline {
+      color: var(--text-dim);
+      font-size: 1rem;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(128,255,255,0.1);
+    }
+
+    .card-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .card h2 {
+      font-size: 1.5rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      color: var(--accent);
+    }
+
+    .card p {
+      color: var(--text-dim);
+      line-height: 1.6;
+      flex: 1;
+    }
+
+    .card-features {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .feature-tag {
+      background: var(--accent-dim);
+      color: var(--accent);
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    footer {
+      padding: 2rem;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 0.875rem;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .library-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 0 2rem 2rem;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+      width: calc(100% - 4rem);
+    }
+
+    .library-section h2 {
+      color: var(--accent);
+      margin-bottom: 1rem;
+      font-weight: 500;
+    }
+
+    .modules {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .module {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .module h3 {
+      font-size: 0.875rem;
+      color: var(--text);
+      font-family: monospace;
+      margin-bottom: 0.5rem;
+    }
+
+    .module p {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>U</span>MBRA</h1>
+    <p class="tagline">Hyperbolic Geometry Visualization &amp; Computation Platform</p>
+  </header>
+
+  <main>
+    <a href="hyperbolic-workspace-pro.html" class="card">
+      <div class="card-icon">🌀</div>
+      <h2>Workbench</h2>
+      <p>Full-featured hyperbolic visualization workspace with interactive Poincaré disk, multiple projections, and rich tooling.</p>
+      <div class="card-features">
+        <span class="feature-tag">Poincaré Disk</span>
+        <span class="feature-tag">Klein Model</span>
+        <span class="feature-tag">Half-Plane</span>
+        <span class="feature-tag">Geodesics</span>
+        <span class="feature-tag">Minimaps</span>
+      </div>
+    </a>
+
+    <a href="lab.html" class="card">
+      <div class="card-icon">🧪</div>
+      <h2>Lab</h2>
+      <p>Experimental playground for testing hyperbolic algorithms, exploring geometry concepts, and prototyping visualizations.</p>
+      <div class="card-features">
+        <span class="feature-tag">REPL</span>
+        <span class="feature-tag">Live Canvas</span>
+        <span class="feature-tag">Algorithm Testing</span>
+        <span class="feature-tag">Export</span>
+      </div>
+    </a>
+
+    <a href="playgrounds/" class="card">
+      <div class="card-icon">🎮</div>
+      <h2>Playgrounds</h2>
+      <p>Collection of focused experiments: attention mechanisms, geometric algebra, linguistics, category theory, and more.</p>
+      <div class="card-features">
+        <span class="feature-tag">Attention</span>
+        <span class="feature-tag">GA</span>
+        <span class="feature-tag">Proofs</span>
+        <span class="feature-tag">Tensors</span>
+      </div>
+    </a>
+  </main>
+
+  <section class="library-section">
+    <h2>Library Modules</h2>
+    <div class="modules">
+      <div class="module">
+        <h3>hyperbolic-algebra.js</h3>
+        <p>Gyrovector space, Möbius addition, parallel transport, Einstein midpoint</p>
+      </div>
+      <div class="module">
+        <h3>hyperbolic-projections.js</h3>
+        <p>Poincaré, Klein, Upper Half-Plane models with unified API</p>
+      </div>
+      <div class="module">
+        <h3>hyperbolic-compute.js</h3>
+        <p>Wavelets, graph Laplacian, geodesic flow, Riemannian optimizer</p>
+      </div>
+      <div class="module">
+        <h3>lorentz-geometry.js</h3>
+        <p>H^8 hyperboloid model, Minkowski inner product, ball tree</p>
+      </div>
+      <div class="module">
+        <h3>hyperbolic-engine.js</h3>
+        <p>Main visualization engine with rendering, interaction, physics</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Umbra Hyperbolic Platform &bull; <a href="https://github.com/anthropics/claude-code/issues">Report Issues</a></p>
+  </footer>
+</body>
+</html>
