@@ -67,7 +67,7 @@ fi
 # 4. Check domains
 echo ""
 echo "▶ Checking domain definitions..."
-DOMAINS="studies infra github notes math langs"
+DOMAINS="hyperbolic infra github notes math langs"
 for domain in $DOMAINS; do
   if grep -q "^\s*$domain:" hyperbolic-engine.js; then
     echo "  ✓ $domain"

@@ -82,6 +82,12 @@
   --accent-yellow: #ffd666;
   --accent-sand: #c9a87c;
 
+  /* Semantic aliases (referenced throughout UI) */
+  --accent-primary: var(--accent-blue);
+  --accent-dim: rgba(110,181,255,.12);
+  --text-muted: var(--text-tertiary);
+  --bg-hover: var(--bg-elevated);
+
   --space-studies: var(--accent-purple);
   --space-infra: var(--accent-green);
   --space-github: var(--accent-blue);
@@ -1060,7 +1066,7 @@ html, body {
   font-weight: 600;
   font-family: var(--font-mono);
   cursor: pointer;
-  transition: background 0.1s, color 0.1s;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .ctrl-btn:first-child {
@@ -2033,16 +2039,24 @@ html, body {
 .command-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.6);
-  backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0);
+  backdrop-filter: blur(0px);
   z-index: 1000;
-  display: none;
+  display: flex;
   align-items: flex-start;
   justify-content: center;
   padding-top: 15vh;
+  pointer-events: none;
+  opacity: 0;
+  transition: background var(--transition-normal), backdrop-filter var(--transition-normal), opacity var(--transition-fast);
 }
 
-.command-overlay.visible { display: flex; }
+.command-overlay.visible {
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+  opacity: 1;
+}
 
 .command-palette {
   width: 560px;
@@ -2054,6 +2068,14 @@ html, body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transform: translateY(-12px) scale(0.97);
+  opacity: 0;
+  transition: transform var(--transition-normal) cubic-bezier(.2,0,0,1), opacity var(--transition-fast);
+}
+
+.command-overlay.visible .command-palette {
+  transform: translateY(0) scale(1);
+  opacity: 1;
 }
 
 .command-input-wrap {
@@ -2079,9 +2101,12 @@ html, body {
   font-size: 16px;
   color: var(--text-primary);
   outline: none;
+  caret-color: var(--accent-blue);
 }
 
-.command-input::placeholder { color: var(--text-disabled); }
+.command-input:focus { outline: none; }
+.command-input::placeholder { color: var(--text-disabled); transition: color var(--transition-fast); }
+.command-input:focus::placeholder { color: var(--text-tertiary); }
 
 .command-hint {
   font-size: 11px;
@@ -2273,11 +2298,19 @@ html, body {
   border-radius: var(--radius-lg);
   padding: 6px;
   z-index: 2000;
-  display: none;
   box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.96) translateY(-4px);
+  transform-origin: top left;
+  transition: opacity var(--transition-fast), transform var(--transition-fast) cubic-bezier(.2,0,0,1);
 }
 
-.context-menu.visible { display: block; }
+.context-menu.visible {
+  pointer-events: auto;
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
 
 .context-item {
   display: flex;
@@ -2599,6 +2632,146 @@ html, body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   POLISHED UX — Dribbble-grade state transitions, focus, filtering, depth
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Focus rings: accessible keyboard navigation ───────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+.command-input:focus-visible { outline: none; }
+
+/* ── Staggered list entrance ───────────────────────────────────────────── */
+@keyframes listSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.command-results .command-item {
+  animation: listSlideIn var(--transition-normal) cubic-bezier(.2,0,0,1) both;
+}
+.command-results .command-item:nth-child(1) { animation-delay: 0ms; }
+.command-results .command-item:nth-child(2) { animation-delay: 30ms; }
+.command-results .command-item:nth-child(3) { animation-delay: 55ms; }
+.command-results .command-item:nth-child(4) { animation-delay: 75ms; }
+.command-results .command-item:nth-child(5) { animation-delay: 90ms; }
+.command-results .command-item:nth-child(n+6) { animation-delay: 100ms; }
+
+.related-item {
+  animation: listSlideIn var(--transition-normal) cubic-bezier(.2,0,0,1) both;
+}
+.related-item:nth-child(1) { animation-delay: 0ms; }
+.related-item:nth-child(2) { animation-delay: 40ms; }
+.related-item:nth-child(3) { animation-delay: 70ms; }
+.related-item:nth-child(4) { animation-delay: 95ms; }
+.related-item:nth-child(n+5) { animation-delay: 110ms; }
+
+/* ── Status bar value transitions ──────────────────────────────────────── */
+.status-focus,
+.status-depth span,
+.status-zoom,
+.status-dist,
+.status-visible span {
+  transition: color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.status-focus.updating,
+.status-zoom.updating {
+  color: var(--accent-blue);
+}
+
+/* ── Node hover elevation ──────────────────────────────────────────────── */
+.dock-item {
+  transition: all var(--transition-fast), box-shadow var(--transition-normal);
+}
+.dock-item:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+
+/* ── Button press depth ────────────────────────────────────────────────── */
+.topbar-btn:active,
+.action-btn:active,
+.ctrl-btn:active,
+.dock-item:active {
+  transform: scale(0.96);
+  transition-duration: 50ms;
+}
+
+/* ── Active tab consistent styling ─────────────────────────────────────── */
+.panel-tab.active {
+  background: color-mix(in srgb, var(--accent-blue) 8%, transparent);
+}
+
+/* ── Focus mode smooth transition ──────────────────────────────────────── */
+.app .topbar {
+  transition: opacity var(--transition-slow);
+}
+.app .sidebar-left,
+.app .sidebar-right {
+  transition: width var(--transition-slow) cubic-bezier(.2,0,0,1),
+              opacity var(--transition-normal),
+              transform var(--transition-slow) cubic-bezier(.2,0,0,1);
+}
+.app.focus-mode .sidebar-left,
+.app.focus-mode .sidebar-right {
+  opacity: 0;
+  transform: translateX(var(--sidebar-translate, 0));
+  pointer-events: none;
+}
+.app.focus-mode .sidebar-left  { --sidebar-translate: -12px; }
+.app.focus-mode .sidebar-right { --sidebar-translate: 12px; }
+
+/* ── Breadcrumb smooth updates ─────────────────────────────────────────── */
+@keyframes breadcrumbIn {
+  from { opacity: 0; transform: translateX(-4px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+#breadcrumb span {
+  display: inline-block;
+  animation: breadcrumbIn var(--transition-fast) ease both;
+}
+
+/* ── Tooltip refined entrance ──────────────────────────────────────────── */
+.tooltip {
+  transition: opacity var(--transition-fast) ease,
+              transform var(--transition-fast) cubic-bezier(.2,0,0,1);
+}
+
+/* ── Selection highlight pulse ─────────────────────────────────────────── */
+@keyframes selectionGlow {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue) 20%, transparent); }
+}
+.command-item.selected {
+  animation: selectionGlow 1.5s ease-in-out infinite;
+}
+
+/* ── Ctrl-btn consistency: use CSS variables for transitions ───────────── */
+.ctrl-btn {
+  transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-normal);
+}
+
+/* ── Path badge slide-in ───────────────────────────────────────────────── */
+@keyframes pathBadgeIn {
+  from { opacity: 0; max-width: 0; padding: 0; overflow: hidden; }
+  to   { opacity: 1; max-width: 300px; }
+}
+.status-path:not(:empty) {
+  animation: pathBadgeIn var(--transition-slow) cubic-bezier(.2,0,0,1) both;
+}
+
+/* ── Mark highlight shimmer ────────────────────────────────────────────── */
+@keyframes markFlash {
+  0%   { background-color: color-mix(in srgb, var(--accent-yellow) 50%, transparent); }
+  100% { background-color: color-mix(in srgb, var(--accent-yellow) 20%, transparent); }
+}
+.command-title mark {
+  animation: markFlash 0.6s ease-out both;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3139,6 +3312,8 @@ html, body {
         <!-- Metrics Section: Zoom + Distance -->
         <div class="status-section status-metrics">
           <span class="status-zoom" id="metricZoom">1.00</span>×
+          <span class="status-sep">·</span>
+          <span class="status-dist" id="metricDist">0.00</span>
           <span class="status-sep">·</span>
           <span class="status-visible"><span id="metricVisible">0</span> vis</span>
         </div>
@@ -3701,6 +3876,7 @@ html, body {
 <script src="hyperbolic-projections.js"></script>
 <script src="hyperbolic-compute.js"></script>
 <script src="lorentz-geometry.js"></script>
+<script src="geometry-extensions.js"></script>
 <script src="hyperbolic-engine.js"></script>
 </body>
 </html>

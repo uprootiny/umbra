@@ -2180,7 +2180,7 @@ const nodeActions = {
 
   // Space switching
   switchHyperbolic: () => switchSpace('hyperbolic'),
-  switchStudies: () => switchSpace('studies'),
+  switchStudies: () => switchSpace('hyperbolic'),
   switchInfra: () => switchSpace('infra'),
   switchGithub: () => switchSpace('github'),
   switchNotes: () => switchSpace('notes'),
@@ -7571,7 +7571,7 @@ document.addEventListener('keydown', e => {
       switchSpace('hyperbolic');
       break;
     case '1':
-      switchSpace('studies');
+      switchSpace('hyperbolic');
       break;
     case '2':
       switchSpace('infra');
