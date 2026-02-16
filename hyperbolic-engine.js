@@ -7047,9 +7047,17 @@ let contextNode = null;
 
 function showContextMenu(x, y, node) {
   contextNode = node;
+  contextMenu.classList.add('visible');
+  // Boundary detection: keep menu fully on-screen
+  const rect = contextMenu.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  if (x + rect.width > vw - 8) x = vw - rect.width - 8;
+  if (y + rect.height > vh - 8) y = vh - rect.height - 8;
+  if (x < 8) x = 8;
+  if (y < 8) y = 8;
   contextMenu.style.left = x + 'px';
   contextMenu.style.top = y + 'px';
-  contextMenu.classList.add('visible');
 }
 
 function hideContextMenu() {
@@ -7235,7 +7243,7 @@ function updateCommandResults(query) {
 
 function renderCommandResults(query) {
   if (commandItems.length === 0) {
-    commandResults.innerHTML = '<div class="command-empty">No results found</div>';
+    commandResults.innerHTML = '<div class="command-empty">No results found<div style="margin-top:8px;font-size:11px;color:var(--text-disabled)">Try a different search or press Esc</div></div>';
     return;
   }
 
@@ -7297,9 +7305,19 @@ commandInput.addEventListener('keydown', e => {
     e.preventDefault();
     commandSelected = Math.min(commandSelected + 1, commandItems.length - 1);
     renderCommandResults(commandInput.value);
+    requestAnimationFrame(() => { const el = commandResults.querySelector('.command-item.selected'); if (el) el.scrollIntoView({ block: 'nearest' }); });
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
     commandSelected = Math.max(commandSelected - 1, 0);
+    renderCommandResults(commandInput.value);
+    requestAnimationFrame(() => { const el = commandResults.querySelector('.command-item.selected'); if (el) el.scrollIntoView({ block: 'nearest' }); });
+  } else if (e.key === 'Home') {
+    e.preventDefault();
+    commandSelected = 0;
+    renderCommandResults(commandInput.value);
+  } else if (e.key === 'End') {
+    e.preventDefault();
+    commandSelected = Math.max(commandItems.length - 1, 0);
     renderCommandResults(commandInput.value);
   } else if (e.key === 'Enter') {
     e.preventDefault();

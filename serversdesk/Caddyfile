@@ -1,8 +1,5 @@
 umbra.hyperstitious.art {
-    root * /home/uprootiny/plates-live/umbra
-    try_files {path} /index.html
-    encode gzip
-    file_server
+    reverse_proxy 127.0.0.1:8421
 }
 
 plates.raindesk.dev {

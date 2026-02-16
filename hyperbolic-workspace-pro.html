@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5" />
   <title>Hyperbolic Workspace Pro</title>
   <style>
 /*
@@ -461,6 +461,21 @@ html, body {
 .app.focus-mode .panel { display: none; }
 .app.focus-mode .topbar { opacity: 0; }
 .app.focus-mode:hover .topbar { opacity: 1; }
+.app.focus-mode .focus-exit-hint {
+  display: block;
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--text-disabled);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity var(--transition-slow);
+}
+.app.focus-mode:hover .focus-exit-hint { opacity: 0; }
+.focus-exit-hint { display: none; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    DOCK (Left Sidebar)
@@ -942,9 +957,10 @@ html, body {
 }
 
 .status-focus {
-  color: var(--accent);
+  color: var(--text-primary);
   font-weight: 600;
-  max-width: 120px;
+  font-size: 13px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1202,6 +1218,18 @@ html, body {
   background: color-mix(in srgb, var(--accent-blue) 20%, transparent);
   color: var(--accent-blue);
 }
+.mode-btn.active[data-mode="select"] {
+  background: color-mix(in srgb, var(--accent-cyan) 20%, transparent);
+  color: var(--accent-cyan);
+}
+.mode-btn.active[data-mode="measure"] {
+  background: color-mix(in srgb, var(--accent-orange) 20%, transparent);
+  color: var(--accent-orange);
+}
+.mode-btn.active[data-mode="path"] {
+  background: color-mix(in srgb, var(--accent-yellow) 20%, transparent);
+  color: var(--accent-yellow);
+}
 
 .mode-btn svg {
   width: 18px;
@@ -1385,8 +1413,8 @@ html, body {
   border-radius: 3px;
 }
 
-.tab-panel { display: none; }
-.tab-panel.active { display: block; }
+.tab-panel { opacity: 0; transform: translateY(6px); pointer-events: none; position: absolute; width: 100%; transition: opacity var(--transition-normal), transform var(--transition-normal); }
+.tab-panel.active { opacity: 1; transform: translateY(0); pointer-events: auto; position: relative; }
 
 .panel-section {
   padding: 16px;
@@ -1724,13 +1752,17 @@ html, body {
   justify-content: center;
   border-radius: 4px;
   color: var(--text-disabled);
-  opacity: 0;
+  opacity: 0.35;
   transition: all var(--transition-fast);
 }
 
 .related-item:hover .related-action {
   opacity: 1;
   color: var(--text-secondary);
+}
+
+@media (pointer: coarse) {
+  .related-action { opacity: 0.5; }
 }
 
 /* Bookmarks */
@@ -1791,7 +1823,7 @@ html, body {
   border-radius: 4px;
   color: var(--text-disabled);
   cursor: pointer;
-  opacity: 0;
+  opacity: 0.3;
   transition: all var(--transition-fast);
 }
 
@@ -2640,7 +2672,7 @@ html, body {
 
 /* ── Focus rings: accessible keyboard navigation ───────────────────────── */
 :focus-visible {
-  outline: 2px solid var(--border-focus);
+  outline: 3px solid #6eb5ff;
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -2979,7 +3011,9 @@ html, body {
     bottom: 12px !important;
     top: auto !important;
     max-height: 60vh;
+    overflow-y: auto;
     border-radius: 12px;
+    transform-origin: bottom center;
   }
 
   /* Tooltip as bottom sheet */
@@ -3068,6 +3102,7 @@ html, body {
 <body>
 
 <div class="app" id="app">
+  <div class="focus-exit-hint">Press <kbd>F</kbd> to exit focus mode</div>
   <!-- Mobile toggle buttons -->
   <button class="mobile-toggle mobile-toggle-dock" id="mobileToggleDock" aria-label="Open spaces menu">☰</button>
   <button class="mobile-toggle mobile-toggle-panel" id="mobileTogglePanel" aria-label="Open details panel">≡</button>
